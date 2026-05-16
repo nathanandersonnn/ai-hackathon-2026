@@ -1,0 +1,257 @@
+.goals-view {
+  padding: 32px;
+  max-width: 1000px;
+}
+
+.goals-layout {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 24px;
+  align-items: start;
+}
+
+.section-title {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 16px;
+}
+
+/* Goals list */
+.goals-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.goal-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.goal-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+}
+
+.goal-card--accent::before  { background: var(--accent); }
+.goal-card--blue::before    { background: var(--blue); }
+.goal-card--orange::before  { background: var(--orange); }
+
+.goal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.goal-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.goal-icon { font-size: 16px; }
+
+.goal-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.goal-met-badge {
+  background: var(--accent-glow);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(163, 230, 53, 0.3);
+}
+
+.goal-edit-btn {
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  transition: all 0.15s;
+}
+
+.goal-edit-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--border-light);
+}
+
+.goal-values {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 14px;
+}
+
+.goal-current, .goal-target {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.goal-current-val {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.goal-target-val {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.goal-unit {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.goal-arrow {
+  font-size: 16px;
+  color: var(--text-muted);
+}
+
+/* Inline edit */
+.inline-edit {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.inline-input {
+  background: var(--bg-elevated);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  width: 80px;
+}
+
+.inline-save {
+  background: var(--accent);
+  color: var(--bg-base);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+}
+
+/* Progress bar */
+.goal-progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.goal-bar-track {
+  flex: 1;
+  height: 8px;
+  background: var(--bg-base);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.goal-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.6s ease;
+}
+
+.goal-bar-fill--accent  { background: var(--accent); }
+.goal-bar-fill--blue    { background: var(--blue); }
+.goal-bar-fill--orange  { background: var(--orange); }
+
+.goal-pct {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  width: 36px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* Milestones */
+.milestones-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 24px;
+}
+
+.milestones-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.milestone-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  opacity: 0.5;
+  transition: background 0.1s;
+}
+
+.milestone-row:hover { background: var(--bg-elevated); }
+
+.milestone-row--earned {
+  opacity: 1;
+}
+
+.milestone-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+  width: 24px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.milestone-row--earned .milestone-icon {
+  color: inherit;
+}
+
+.milestone-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.milestone-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.milestone-row:not(.milestone-row--earned) .milestone-label {
+  color: var(--text-muted);
+}
+
+.milestone-date {
+  font-size: 11px;
+  color: var(--text-muted);
+}
