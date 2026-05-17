@@ -5,12 +5,16 @@ import Chat from './components/Chat/Chat'
 import Dashboard from './components/Dashboard/Dashboard'
 import Logging from './components/Logging/Logging'
 import Goals from './components/Goals/Goals'
+import Workouts from './components/Workouts/Workouts'
+import Calories from './components/Calories/Calories'
 import './App.css'
 
 const VIEWS = {
   dashboard: Dashboard,
   camera: Camera,
   chat: Chat,
+  workouts: Workouts,
+  calories: Calories,
   logging: Logging,
   goals: Goals,
 }

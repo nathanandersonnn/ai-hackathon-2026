@@ -1,0 +1,387 @@
+.calories-view {
+  padding: 32px;
+  max-width: 1060px;
+}
+
+.calories-layout {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.calories-left,
+.calories-right {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Shared card */
+.cal-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.card-sub {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin-top: -6px;
+}
+
+/* Profile inputs */
+.profile-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.toggle-row {
+  display: flex;
+  gap: 6px;
+}
+
+.toggle-btn {
+  flex: 1;
+  padding: 9px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.12s;
+}
+
+.toggle-btn:hover {
+  border-color: var(--border-light);
+  color: var(--text-primary);
+}
+
+.toggle-btn--active {
+  background: var(--accent-glow);
+  border-color: rgba(163, 230, 53, 0.4);
+  color: var(--accent);
+}
+
+.height-row {
+  display: flex;
+  gap: 8px;
+}
+
+.input-wrap {
+  position: relative;
+  flex: 1;
+}
+
+.cal-input {
+  width: 100%;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 38px 10px 12px;
+  font-size: 15px;
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--text-primary);
+  transition: border-color 0.15s;
+}
+
+.cal-input:focus { border-color: var(--accent); }
+.cal-input::placeholder { color: var(--text-muted); font-weight: 400; font-size: 14px; }
+
+.input-unit {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+  pointer-events: none;
+}
+
+.cal-select {
+  width: 100%;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+  transition: border-color 0.15s;
+  appearance: none;
+  cursor: pointer;
+}
+
+.cal-select:focus { border-color: var(--accent); outline: none; }
+
+/* BMR results */
+.bmr-results {
+  background: var(--bg-elevated);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  padding: 16px;
+  display: flex;
+  gap: 0;
+}
+
+.bmr-stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+}
+
+.bmr-divider {
+  width: 1px;
+  background: var(--border);
+  margin: 0 16px;
+}
+
+.bmr-val {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.bmr-val--accent { color: var(--accent); }
+
+.bmr-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.4;
+}
+
+/* Daily summary bar */
+.cal-progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.cal-progress-label {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.cal-progress-value {
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--font-display);
+}
+
+.cal-bar-track {
+  height: 10px;
+  background: var(--bg-base);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.cal-bar-fill {
+  height: 100%;
+  border-radius: 5px;
+  transition: width 0.5s ease;
+}
+
+/* Macro chips */
+.macro-row {
+  display: flex;
+  gap: 10px;
+}
+
+.macro-chip {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 8px;
+  border-radius: var(--radius-sm);
+  gap: 3px;
+}
+
+.macro-chip--blue   { background: rgba(56,189,248,0.1); }
+.macro-chip--orange { background: rgba(251,146,60,0.1); }
+.macro-chip--purple { background: rgba(167,139,250,0.1); }
+
+.macro-val {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.macro-chip--blue   .macro-val { color: var(--blue); }
+.macro-chip--orange .macro-val { color: var(--orange); }
+.macro-chip--purple .macro-val { color: var(--purple); }
+
+.macro-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+/* Text food entry */
+.food-text-row {
+  display: flex;
+  gap: 8px;
+}
+
+.food-text-input {
+  flex: 1;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 11px 14px;
+  font-size: 13.5px;
+  color: var(--text-primary);
+  transition: border-color 0.15s;
+}
+
+.food-text-input:focus { border-color: var(--accent); }
+.food-text-input::placeholder { color: var(--text-muted); }
+
+.add-btn {
+  padding: 11px 18px;
+  font-size: 13px;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
+.add-btn--loading { opacity: 0.7; cursor: default; }
+
+/* Photo drop zone */
+.photo-drop {
+  border: 2px dashed var(--border-light);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 150px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  overflow: hidden;
+}
+
+.photo-drop:hover:not(.photo-drop--filled) {
+  border-color: var(--accent);
+  background: var(--accent-glow);
+}
+
+.photo-drop--filled {
+  cursor: default;
+  border-style: solid;
+  border-color: var(--border);
+  min-height: 200px;
+}
+
+.photo-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.photo-placeholder svg { opacity: 0.5; }
+
+.photo-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+.photo-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  max-height: 260px;
+}
+
+.photo-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+/* Food log table */
+.food-log-list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.food-log-header {
+  display: grid;
+  grid-template-columns: 1fr 52px 44px 44px 44px 28px;
+  padding: 8px 12px;
+  background: var(--bg-elevated);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border);
+}
+
+.food-log-row {
+  display: grid;
+  grid-template-columns: 1fr 52px 44px 44px 44px 28px;
+  align-items: center;
+  padding: 10px 12px;
+  font-size: 13px;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.1s;
+}
+
+.food-log-row:last-child { border-bottom: none; }
+.food-log-row:hover { background: var(--bg-elevated); }
+
+.food-log-name {
+  color: var(--text-primary);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.source-tag { font-size: 13px; flex-shrink: 0; }
+
+.food-log-cal  { color: var(--accent); font-weight: 600; font-family: var(--font-display); }
+.food-log-macro { color: var(--text-muted); font-size: 12px; }
+
+.remove-btn {
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 16px;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: all 0.12s;
+}
+
+.remove-btn:hover { color: var(--red); background: rgba(248,113,113,0.1); }
