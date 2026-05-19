@@ -7,8 +7,12 @@
 //    VITE_FORM_CHECK_API_KEY=your_key_here
 // ─────────────────────────────────────────────
 
-const BASE_URL = import.meta.env.VITE_FORM_CHECK_API_URL
+const BASE_URL = import.meta.env.VITE_FORM_CHECK_API_URL ?? ''
 const API_KEY  = import.meta.env.VITE_FORM_CHECK_API_KEY
+
+function authHeaders() {
+  return API_KEY ? { Authorization: `Bearer ${API_KEY}` } : {}
+}
 
 /**
  * Send a completed set to the backend for form analysis.
@@ -21,14 +25,15 @@ const API_KEY  = import.meta.env.VITE_FORM_CHECK_API_KEY
  * @returns {Promise<{ formScore: number, feedback: { type: 'good'|'warn', text: string }[] }>}
  */
 export async function analyzeSet(setData) {
+  console.log('[analyzeSet] called with', { exercise: setData.exercise, reps: setData.reps, frames: setData.landmarks?.length })
+  const body = JSON.stringify(setData)
+  console.log('[analyzeSet] serialized body bytes:', body.length, '→ fetching', `${BASE_URL}/analyze-set`)
   const response = await fetch(`${BASE_URL}/analyze-set`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${API_KEY}`,
-    },
-    body: JSON.stringify(setData),
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body,
   })
+  console.log('[analyzeSet] response received, status', response.status)
 
   if (!response.ok) throw new Error(`Form check API error: ${response.status}`)
   return response.json()
@@ -42,7 +47,7 @@ export async function analyzeSet(setData) {
  */
 export async function getExerciseTips(exercise) {
   const response = await fetch(`${BASE_URL}/exercise-tips/${encodeURIComponent(exercise)}`, {
-    headers: { 'Authorization': `Bearer ${API_KEY}` },
+    headers: authHeaders(),
   })
 
   if (!response.ok) throw new Error(`Form check API error: ${response.status}`)

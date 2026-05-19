@@ -1,14 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPoseSession, POSE_CONNECTIONS } from '../../lib/pose/poseDetector'
+import { createTracker } from '../../lib/pose/exercises'
+import { analyzeSet } from '../../lib/api/formCheck'
 import './Camera.css'
 
 const EXERCISES = ['Squat', 'Push-up', 'Deadlift', 'Lunge']
-
-const MOCK_FEEDBACK = [
-  { type: 'warn',  text: 'Knees tracking slightly inward — push them out over your toes' },
-  { type: 'good',  text: 'Good squat depth — hitting parallel consistently' },
-  { type: 'good',  text: 'Back is neutral throughout the movement' },
-  { type: 'warn',  text: 'Heels rising slightly at the bottom — work on ankle mobility' },
-]
 
 export default function Camera() {
   const [active, setActive] = useState(false)
@@ -17,8 +13,24 @@ export default function Camera() {
   const [formScore, setFormScore] = useState(null)
   const [cameraError, setCameraError] = useState(null)
 
+  const [liveAngle, setLiveAngle] = useState(null)
+  const [angleLabel, setAngleLabel] = useState('')
+  const [handsUp, setHandsUp] = useState({ left: false, right: false })
+  const [feedback, setFeedback] = useState([])
+  const [analyzing, setAnalyzing] = useState(false)
+  const [analyzeError, setAnalyzeError] = useState(null)
+  const [countdown, setCountdown] = useState(null)
+  const [cameraStarting, setCameraStarting] = useState(false)
+  const trackingReadyRef = useRef(false)
+  const countdownTimerRef = useRef(null)
+  const analyzeAbortRef = useRef(null)
+
   const videoRef = useRef(null)
+  const canvasRef = useRef(null)
   const streamRef = useRef(null)
+  const sessionRef = useRef(null)
+  const trackerRef = useRef(null)
+  const landmarksRef = useRef([])
 
   useEffect(() => {
     if (!active) {
@@ -30,10 +42,13 @@ export default function Camera() {
 
     async function start() {
       try {
+        setCameraStarting(true)
+        console.log('[Camera] requesting getUserMedia')
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
           audio: false,
         })
+        console.log('[Camera] stream acquired')
 
         if (cancelled) {
           stream.getTracks().forEach(t => t.stop())
@@ -41,12 +56,54 @@ export default function Camera() {
         }
 
         streamRef.current = stream
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream
+        const video = videoRef.current
+        if (!video) return
+        video.srcObject = stream
+
+        await new Promise((resolve) => {
+          if (video.readyState >= 2) resolve()
+          else video.onloadedmetadata = () => resolve()
+        })
+        if (cancelled) return
+
+        const canvas = canvasRef.current
+        if (canvas) {
+          canvas.width = video.videoWidth
+          canvas.height = video.videoHeight
         }
+
+        landmarksRef.current = []
+        trackerRef.current = createTracker(exercise)
+        trackingReadyRef.current = false
+        setCameraStarting(false)
+        startCountdown()
+        console.log('[Camera] pose session starting')
+        sessionRef.current = await createPoseSession(video, (result) => {
+          const lm = result.landmarks[0]
+          drawPose(canvas, lm)
+
+          const tracker = trackerRef.current
+          if (tracker && trackingReadyRef.current) {
+            landmarksRef.current.push(lm)
+            const out = tracker.update(lm)
+            if (out.angle != null) setLiveAngle(Math.round(out.angle))
+            setAngleLabel(tracker.label)
+            setRepCount(out.reps)
+          }
+
+          const leftWrist = lm[15]
+          const rightWrist = lm[16]
+          const leftShoulder = lm[11]
+          const rightShoulder = lm[12]
+          const leftUp = leftWrist && leftShoulder && (leftWrist.visibility ?? 1) > 0.5 && leftWrist.y < leftShoulder.y
+          const rightUp = rightWrist && rightShoulder && (rightWrist.visibility ?? 1) > 0.5 && rightWrist.y < rightShoulder.y
+          setHandsUp(prev => (prev.left === leftUp && prev.right === rightUp) ? prev : { left: leftUp, right: rightUp })
+        })
       } catch (err) {
         if (cancelled) return
+        console.error('[Camera] start failed', err)
         setCameraError(describeCameraError(err))
+        setCameraStarting(false)
         setActive(false)
       }
     }
@@ -63,7 +120,35 @@ export default function Camera() {
     return () => stopStream()
   }, [])
 
+  function startCountdown() {
+    setCountdown(3)
+    let n = 3
+    if (countdownTimerRef.current) clearInterval(countdownTimerRef.current)
+    countdownTimerRef.current = setInterval(() => {
+      n -= 1
+      if (n <= 0) {
+        clearInterval(countdownTimerRef.current)
+        countdownTimerRef.current = null
+        setCountdown(null)
+        trackingReadyRef.current = true
+      } else {
+        setCountdown(n)
+      }
+    }, 1000)
+  }
+
   function stopStream() {
+    if (countdownTimerRef.current) {
+      clearInterval(countdownTimerRef.current)
+      countdownTimerRef.current = null
+    }
+    trackingReadyRef.current = false
+    setCountdown(null)
+    setCameraStarting(false)
+    if (sessionRef.current) {
+      sessionRef.current.stop()
+      sessionRef.current = null
+    }
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(t => t.stop())
       streamRef.current = null
@@ -71,22 +156,75 @@ export default function Camera() {
     if (videoRef.current) {
       videoRef.current.srcObject = null
     }
-  }
-
-  function toggleCamera() {
-    if (active) {
-      setActive(false)
-      setFormScore(Math.floor(Math.random() * 20) + 78)
-    } else {
-      setCameraError(null)
-      setRepCount(0)
-      setFormScore(null)
-      setActive(true)
+    const canvas = canvasRef.current
+    if (canvas) {
+      const ctx = canvas.getContext('2d')
+      ctx?.clearRect(0, 0, canvas.width, canvas.height)
     }
   }
 
-  function simulateRep() {
-    setRepCount(r => r + 1)
+  async function toggleCamera() {
+    if (active) {
+      const capturedExercise = exercise
+      const capturedReps = repCount
+      const capturedLandmarks = landmarksRef.current.slice()
+      console.log(`[Camera] End Set: reps=${capturedReps} frames=${capturedLandmarks.length}`)
+      setActive(false)
+
+      if (capturedReps === 0 || capturedLandmarks.length === 0) {
+        console.log('[Camera] no reps/frames, skipping analyze-set')
+        setFeedback([])
+        setFormScore(null)
+        return
+      }
+
+      if (analyzeAbortRef.current) {
+        analyzeAbortRef.current.abort()
+      }
+      const abort = new AbortController()
+      analyzeAbortRef.current = abort
+
+      setAnalyzing(true)
+      setAnalyzeError(null)
+      setFeedback([])
+      setFormScore(null)
+      try {
+        const result = await analyzeSet({
+          exercise: capturedExercise,
+          reps: capturedReps,
+          landmarks: capturedLandmarks,
+        })
+        if (abort.signal.aborted) return
+        setFormScore(result.formScore)
+        setFeedback(result.feedback ?? [])
+      } catch (err) {
+        if (abort.signal.aborted) return
+        console.error('[Camera] analyzeSet failed', err)
+        setAnalyzeError(err.message || 'Analysis failed')
+      } finally {
+        if (analyzeAbortRef.current === abort) {
+          analyzeAbortRef.current = null
+          setAnalyzing(false)
+        }
+      }
+    } else {
+      if (analyzeAbortRef.current) {
+        console.log('[Camera] aborting in-flight analyzeSet for new session')
+        analyzeAbortRef.current.abort()
+        analyzeAbortRef.current = null
+      }
+      landmarksRef.current = []
+      setCameraError(null)
+      setAnalyzeError(null)
+      setAnalyzing(false)
+      setRepCount(0)
+      setLiveAngle(null)
+      setAngleLabel('')
+      setHandsUp({ left: false, right: false })
+      setFormScore(null)
+      setFeedback([])
+      setActive(true)
+    }
   }
 
   return (
@@ -109,10 +247,31 @@ export default function Camera() {
               muted
               style={{ display: active ? 'block' : 'none' }}
             />
+            <canvas
+              ref={canvasRef}
+              className="camera-canvas"
+              style={{ display: active ? 'block' : 'none' }}
+            />
 
             {active && (
               <>
                 <div className="live-badge">● LIVE</div>
+                {cameraStarting && (
+                  <div className="countdown-overlay">
+                    <span className="countdown-label">Starting camera…</span>
+                  </div>
+                )}
+                {countdown !== null && (
+                  <div className="countdown-overlay">
+                    <span className="countdown-number">{countdown}</span>
+                    <span className="countdown-label">Get into position</span>
+                  </div>
+                )}
+                {(handsUp.left || handsUp.right) && countdown === null && (
+                  <div className="pose-test-badge">
+                    ✋ {handsUp.left && handsUp.right ? 'Both hands up' : handsUp.left ? 'Left hand up' : 'Right hand up'}
+                  </div>
+                )}
                 <div className="rep-overlay">
                   <span className="rep-number">{repCount}</span>
                   <span className="rep-label">reps</span>
@@ -145,10 +304,10 @@ export default function Camera() {
             </div>
 
             <div className="control-btns">
-              {active && (
-                <button className="btn-secondary" onClick={simulateRep}>
-                  + Rep
-                </button>
+              {active && liveAngle != null && angleLabel && (
+                <div className="angle-readout">
+                  {angleLabel}: <span>{liveAngle}°</span>
+                </div>
               )}
               <button
                 className={active ? 'btn-stop' : 'btn-accent'}
@@ -174,19 +333,33 @@ export default function Camera() {
           {active && (
             <div className="live-status">
               <div className="pulse-dot" />
-              <span>Analyzing your {exercise.toLowerCase()}…</span>
+              <span>Tracking your {exercise.toLowerCase()}…</span>
+            </div>
+          )}
+
+          {analyzing && (
+            <div className="live-status">
+              <div className="pulse-dot" />
+              <span>Analyzing set with Claude…</span>
+            </div>
+          )}
+
+          {analyzeError && (
+            <div className="feedback-item feedback-item--warn">
+              <span className="feedback-icon">!</span>
+              <span>{analyzeError}</span>
             </div>
           )}
 
           <div className="feedback-list">
-            {(formScore !== null || active) && MOCK_FEEDBACK.map((f, i) => (
+            {feedback.map((f, i) => (
               <div key={i} className={`feedback-item feedback-item--${f.type}`}>
                 <span className="feedback-icon">{f.type === 'good' ? '✓' : '!'}</span>
                 <span>{f.text}</span>
               </div>
             ))}
 
-            {formScore === null && !active && (
+            {feedback.length === 0 && !active && !analyzing && !analyzeError && (
               <p className="feedback-empty">Start a session to see real-time form feedback here.</p>
             )}
           </div>
@@ -202,6 +375,36 @@ export default function Camera() {
       </div>
     </div>
   )
+}
+
+function drawPose(canvas, landmarks) {
+  if (!canvas || !landmarks) return
+  const ctx = canvas.getContext('2d')
+  const w = canvas.width
+  const h = canvas.height
+  ctx.clearRect(0, 0, w, h)
+
+  ctx.strokeStyle = '#a3e635'
+  ctx.lineWidth = 3
+  for (const [a, b] of POSE_CONNECTIONS) {
+    const p1 = landmarks[a]
+    const p2 = landmarks[b]
+    if (!p1 || !p2) continue
+    if ((p1.visibility ?? 1) < 0.5 || (p2.visibility ?? 1) < 0.5) continue
+    ctx.beginPath()
+    ctx.moveTo(p1.x * w, p1.y * h)
+    ctx.lineTo(p2.x * w, p2.y * h)
+    ctx.stroke()
+  }
+
+  ctx.fillStyle = '#a3e635'
+  for (let i = 11; i < landmarks.length; i++) {
+    const p = landmarks[i]
+    if (!p || (p.visibility ?? 1) < 0.5) continue
+    ctx.beginPath()
+    ctx.arc(p.x * w, p.y * h, 5, 0, Math.PI * 2)
+    ctx.fill()
+  }
 }
 
 function describeCameraError(err) {
