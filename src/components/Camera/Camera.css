@@ -33,6 +33,15 @@
   box-shadow: var(--shadow-glow);
 }
 
+.camera-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);
+}
+
 .camera-placeholder {
   display: flex;
   flex-direction: column;
