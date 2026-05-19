@@ -30,7 +30,7 @@ const TEAM = [
 
 // EDIT: Any links you want to show (GitHub, demo, etc.) — set href to the real URL
 const LINKS = [
-  { label: "GitHub",       href: "#" },
+  { label: "GitHub",       href: "https://github.com/nathanandersonnn/ai-hackathon-2026" },
   { label: "Live Demo",    href: "#" },
   { label: "Contact Us",   href: "#" },
 ]
