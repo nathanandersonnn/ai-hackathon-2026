@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p \"/Users/nathananderson/ExtraCurricular/AI Hackathon Project/ai-hackathon-2026/src/components/About\")",
+      "Bash(mkdir -p \"/Users/nathananderson/ExtraCurricular/AI Hackathon Project/ai-hackathon-2026/src/lib/api\")"
+    ],
+    "additionalDirectories": [
+      "/Users/nathananderson/ExtraCurricular/AI Hackathon Project/ai-hackathon-2026/src/components",
+      "/Users/nathananderson/ExtraCurricular/AI Hackathon Project/ai-hackathon-2026/src/lib"
+    ]
+  }
+}

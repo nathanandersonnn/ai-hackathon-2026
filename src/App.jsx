@@ -7,6 +7,7 @@ import Logging from './components/Logging/Logging'
 import Goals from './components/Goals/Goals'
 import Workouts from './components/Workouts/Workouts'
 import Calories from './components/Calories/Calories'
+import About from './components/About/About'
 import './App.css'
 
 const VIEWS = {
@@ -17,6 +18,7 @@ const VIEWS = {
   calories: Calories,
   logging: Logging,
   goals: Goals,
+  about: About,
 }
 
 export default function App() {

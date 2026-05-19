@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react'
+import { lookupFoodText, analyzeFoodPhoto } from '../../lib/api/calories'
 import './Calories.css'
 
 // Mifflin-St Jeor BMR
@@ -16,11 +17,6 @@ const ACTIVITY_MULTIPLIERS = [
   { label: 'Very active (6–7 days/week)',        value: 1.725 },
 ]
 
-const MOCK_FOODS = [
-  { name: '6oz Chicken Breast (plain)', cal: 187, protein: 35, carbs: 0,  fat: 4  },
-  { name: 'Brown Rice (1 cup cooked)',  cal: 216, protein: 5,  carbs: 45, fat: 2  },
-  { name: 'Banana (medium)',            cal: 105, protein: 1,  carbs: 27, fat: 0  },
-]
 
 export default function Calories() {
   // Profile / BMR state
@@ -32,6 +28,7 @@ export default function Calories() {
   // Food log state
   const [foodText, setFoodText] = useState('')
   const [photoPreview, setPhotoPreview] = useState(null)
+  const [photoFile, setPhotoFile] = useState(null)
   const [photoName, setPhotoName] = useState('')
   const [log, setLog] = useState([])
   const [logLoading, setLogLoading] = useState(false)
@@ -54,36 +51,43 @@ export default function Calories() {
     setProfileSaved(true)
   }
 
-  function addFoodText() {
+  async function addFoodText() {
     if (!foodText.trim()) return
     setLogLoading(true)
-    // Placeholder — backend will parse and return macros
-    setTimeout(() => {
-      const mock = MOCK_FOODS[log.length % MOCK_FOODS.length]
-      setLog(prev => [...prev, { ...mock, name: foodText, source: 'text' }])
+    try {
+      const result = await lookupFoodText(foodText)
+      setLog(prev => [...prev, { ...result, source: 'text' }])
       setFoodText('')
+    } catch (err) {
+      console.error('Food lookup failed:', err)
+    } finally {
       setLogLoading(false)
-    }, 900)
+    }
   }
 
   function handlePhotoChange(e) {
     const file = e.target.files[0]
     if (!file) return
+    setPhotoFile(file)
     setPhotoName(file.name)
     setPhotoPreview(URL.createObjectURL(file))
   }
 
-  function analyzePhoto() {
-    if (!photoPreview) return
+  async function analyzePhoto() {
+    if (!photoFile) return
     setPhotoLoading(true)
-    // Placeholder — backend will run vision model and return macros
-    setTimeout(() => {
-      setLog(prev => [...prev, { name: photoName || 'Food from photo', cal: 320, protein: 22, carbs: 30, fat: 10, source: 'photo' }])
+    try {
+      const result = await analyzeFoodPhoto(photoFile)
+      setLog(prev => [...prev, { ...result, source: 'photo' }])
       setPhotoPreview(null)
+      setPhotoFile(null)
       setPhotoName('')
-      setPhotoLoading(false)
       if (fileRef.current) fileRef.current.value = ''
-    }, 1400)
+    } catch (err) {
+      console.error('Photo analysis failed:', err)
+    } finally {
+      setPhotoLoading(false)
+    }
   }
 
   function removeItem(i) {

@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from 'react'
+import { sendMessage as apiSendMessage } from '../../lib/api/chat'
 import './Chat.css'
 
 const INITIAL_MESSAGES = [
   {
     role: 'assistant',
-    text: "Hey Nathan! I've looked at your week — 4 workouts with an 84 avg form score. Solid. Your squat depth has been consistent, though your knees drift in slightly on rep 3+ when fatigued. What are we working on today?",
+    text: "Hey! I'm your MyFitBud coach. What are we working on today?",
   },
 ]
 
@@ -25,24 +26,27 @@ export default function Chat() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, loading])
 
-  function sendMessage(text) {
+  async function sendMessage(text) {
     const msg = text ?? input.trim()
     if (!msg) return
     setInput('')
-    setMessages(prev => [...prev, { role: 'user', text: msg }])
+    const updated = [...messages, { role: 'user', text: msg }]
+    setMessages(updated)
     setLoading(true)
 
-    // Placeholder until Claude API is wired up
-    setTimeout(() => {
+    try {
+      const reply = await apiSendMessage(messages, msg, {
+        // TODO: pass real recentLogs, recentSessions, goals from Supabase
+        recentLogs: [],
+        recentSessions: [],
+        goals: {},
+      })
+      setMessages(prev => [...prev, { role: 'assistant', text: reply }])
+    } catch (err) {
+      setMessages(prev => [...prev, { role: 'assistant', text: `Error: ${err.message}` }])
+    } finally {
       setLoading(false)
-      setMessages(prev => [
-        ...prev,
-        {
-          role: 'assistant',
-          text: "Got it! Once the Claude API is connected, I'll give you a real response based on your workout history and goals. For now, I'm just a placeholder — but the UI is ready to go.",
-        },
-      ])
-    }, 1200)
+    }
   }
 
   function handleKeyDown(e) {
