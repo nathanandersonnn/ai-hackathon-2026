@@ -1,30 +1,58 @@
 import { useState, useRef, useEffect } from 'react'
-import { sendMessage as apiSendMessage } from '../../lib/api/chat'
+import { sendMessage as apiSendMessage, parseMessage } from '../../lib/api/chat'
+import { getDailyLogs } from '../../lib/supabase/dailyLogs'
+import { getWorkoutSessions } from '../../lib/supabase/workouts'
+import { getGoals } from '../../lib/supabase/goals'
 import './Chat.css'
 
-const INITIAL_MESSAGES = [
-  {
-    role: 'assistant',
-    text: "Hey! I'm your MyFitBud coach. What are we working on today?",
-  },
-]
-
 const QUICK_PROMPTS = [
-  "I only have 20 minutes",
-  "My legs are sore from yesterday",
+  "I'm limited on time",
+  "I'm feeling sore today",
   "Suggest a workout for today",
   "How's my progress this week?",
 ]
 
-export default function Chat() {
-  const [messages, setMessages] = useState(INITIAL_MESSAGES)
+function buildGreeting(name) {
+  return name
+    ? `Hey ${name}! I'm your MyFitBud coach. What are we working on today?`
+    : "Hey! I'm your MyFitBud coach. What are we working on today?"
+}
+
+export default function Chat({ user }) {
+  const username = user?.user_metadata?.username?.trim() || null
+
+  const [messages, setMessages] = useState([{ role: 'assistant', text: buildGreeting(username) }])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [context, setContext] = useState({ recentLogs: [], recentSessions: [], goals: {}, name: username })
   const bottomRef = useRef(null)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, loading])
+
+  // Update greeting if username changes while on this screen (and no chat has started yet)
+  useEffect(() => {
+    setMessages(prev => {
+      if (prev.length !== 1 || prev[0].role !== 'assistant') return prev
+      return [{ role: 'assistant', text: buildGreeting(username) }]
+    })
+    setContext(c => ({ ...c, name: username }))
+  }, [username])
+
+  // Load fitness context once on mount so Groq sees real data
+  useEffect(() => {
+    Promise.all([getDailyLogs(14), getWorkoutSessions(14), getGoals()])
+      .then(([logs, sessions, goals]) => {
+        setContext(c => ({
+          ...c,
+          recentLogs: logs,
+          recentSessions: sessions,
+          goals: goals.reduce((acc, g) => ({ ...acc, [g.label]: g }), {}),
+        }))
+      })
+      .catch(err => console.warn('Could not load chat context:', err))
+  }, [])
 
   async function sendMessage(text) {
     const msg = text ?? input.trim()
@@ -35,12 +63,7 @@ export default function Chat() {
     setLoading(true)
 
     try {
-      const reply = await apiSendMessage(messages, msg, {
-        // TODO: pass real recentLogs, recentSessions, goals from Supabase
-        recentLogs: [],
-        recentSessions: [],
-        goals: {},
-      })
+      const reply = await apiSendMessage(messages, msg, context)
       setMessages(prev => [...prev, { role: 'assistant', text: reply }])
     } catch (err) {
       setMessages(prev => [...prev, { role: 'assistant', text: `Error: ${err.message}` }])
@@ -71,16 +94,38 @@ export default function Chat() {
 
       <div className="chat-layout">
         <div className="chat-messages">
-          {messages.map((msg, i) => (
-            <div key={i} className={`message message--${msg.role}`}>
-              {msg.role === 'assistant' && (
-                <div className="message-avatar">⚡</div>
-              )}
-              <div className="message-bubble">
-                <p>{msg.text}</p>
+          {messages.map((msg, i) => {
+            const isLast = i === messages.length - 1
+            const { text, options } = msg.role === 'assistant'
+              ? parseMessage(msg.text)
+              : { text: msg.text, options: [] }
+
+            return (
+              <div key={i} className={`message message--${msg.role}`}>
+                {msg.role === 'assistant' && (
+                  <div className="message-avatar">⚡</div>
+                )}
+                <div className="message-group">
+                  <div className="message-bubble">
+                    <p>{text}</p>
+                  </div>
+                  {options.length > 0 && isLast && !loading && (
+                    <div className="option-chips">
+                      {options.map((opt, j) => (
+                        <button
+                          key={j}
+                          className="option-chip"
+                          onClick={() => sendMessage(opt)}
+                        >
+                          {opt}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
 
           {loading && (
             <div className="message message--assistant">
@@ -95,13 +140,15 @@ export default function Chat() {
         </div>
 
         <div className="chat-input-area">
-          <div className="quick-prompts">
-            {QUICK_PROMPTS.map(p => (
-              <button key={p} className="quick-prompt" onClick={() => sendMessage(p)}>
-                {p}
-              </button>
-            ))}
-          </div>
+          {messages.length <= 1 && (
+            <div className="quick-prompts">
+              {QUICK_PROMPTS.map(p => (
+                <button key={p} className="quick-prompt" onClick={() => sendMessage(p)}>
+                  {p}
+                </button>
+              ))}
+            </div>
+          )}
 
           <div className="input-row">
             <textarea

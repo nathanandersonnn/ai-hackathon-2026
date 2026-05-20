@@ -1,93 +1,145 @@
+import { useState, useEffect } from 'react'
+import { getDailyLogs } from '../../lib/supabase/dailyLogs'
+import { getWorkoutSessions } from '../../lib/supabase/workouts'
 import './Dashboard.css'
 
-const WEEKLY_DATA = [
-  { day: 'Mon', steps: 8200, workout: true },
-  { day: 'Tue', steps: 6100, workout: false },
-  { day: 'Wed', steps: 11400, workout: true },
-  { day: 'Thu', steps: 9800, workout: true },
-  { day: 'Fri', steps: 7300, workout: false },
-  { day: 'Sat', steps: 12500, workout: true },
-  { day: 'Sun', steps: 4200, workout: false },
-]
+const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
-const RECENT_SESSIONS = [
-  { date: 'Today',      exercise: 'Squats',    sets: 4, reps: 10, score: 87 },
-  { date: 'Wed',        exercise: 'Push-ups',  sets: 3, reps: 15, score: 92 },
-  { date: 'Mon',        exercise: 'Deadlifts', sets: 3, reps: 8,  score: 74 },
-]
+// Build a Mon→Sun array for the current week from raw daily_logs.
+function buildWeeklyData(logs, sessions) {
+  const today = new Date()
+  // Start at Monday of this week
+  const day = today.getDay() // 0 (Sun) – 6 (Sat)
+  const offsetFromMon = day === 0 ? 6 : day - 1
+  const monday = new Date(today)
+  monday.setDate(today.getDate() - offsetFromMon)
+  monday.setHours(0, 0, 0, 0)
 
-const maxSteps = Math.max(...WEEKLY_DATA.map(d => d.steps))
+  const sessionDates = new Set(sessions.map(s => s.date))
+  const logsByDate = Object.fromEntries(logs.map(l => [l.date, l]))
+
+  return DAYS.map((label, i) => {
+    const d = new Date(monday)
+    d.setDate(monday.getDate() + i)
+    const iso = d.toISOString().slice(0, 10)
+    return {
+      day: label,
+      steps: logsByDate[iso]?.steps ?? 0,
+      workout: sessionDates.has(iso),
+    }
+  })
+}
 
 export default function Dashboard() {
+  const [logs, setLogs]         = useState([])
+  const [sessions, setSessions] = useState([])
+  const [loading, setLoading]   = useState(true)
+
+  useEffect(() => {
+    Promise.all([getDailyLogs(30), getWorkoutSessions(20)])
+      .then(([l, s]) => { setLogs(l); setSessions(s) })
+      .catch(err => console.error('Dashboard load failed:', err))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const weeklyData = buildWeeklyData(logs, sessions)
+  const todayIso = new Date().toISOString().slice(0, 10)
+  const todayLog = logs.find(l => l.date === todayIso)
+
+  // Workouts this week = sessions whose date is >= Monday of this week
+  const monday = new Date()
+  monday.setDate(monday.getDate() - (monday.getDay() === 0 ? 6 : monday.getDay() - 1))
+  monday.setHours(0, 0, 0, 0)
+  const workoutsThisWeek = sessions.filter(s => new Date(s.date) >= monday).length
+
+  const stats = {
+    workouts: workoutsThisWeek,
+    avgScore: null, // populated once form-check API stores scores
+    steps:    todayLog?.steps ?? '—',
+    weight:   logs.find(l => l.weight)?.weight ?? '—',
+  }
+
   return (
     <div className="dashboard">
       <header className="page-header">
         <div>
-          <h1 className="page-title">Good morning, Nathan 👋</h1>
-          <p className="page-subtitle">Friday, May 16 · Here's your progress this week</p>
-        </div>
-        <div className="header-badge">
-          <span className="streak-flame">🔥</span>
-          <span className="streak-count">5</span>
-          <span className="streak-label">day streak</span>
+          <h1 className="page-title">Dashboard</h1>
+          <p className="page-subtitle">Your progress at a glance</p>
         </div>
       </header>
 
       <div className="stats-row">
-        <StatCard label="Workouts this week" value="4" unit="/ 5 goal" color="accent" />
-        <StatCard label="Avg form score"      value="84" unit="/ 100"  color="blue" />
-        <StatCard label="Today's steps"       value="7,300" unit="/ 10k goal" color="purple" />
-        <StatCard label="Weight"              value="175" unit="lbs"   color="orange" />
+        <StatCard label="Workouts this week" value={stats.workouts}        unit="this week" color="accent" />
+        <StatCard label="Avg form score"      value={stats.avgScore ?? '—'} unit="/ 100"     color="blue" />
+        <StatCard label="Today's steps"       value={typeof stats.steps === 'number' ? stats.steps.toLocaleString() : stats.steps} unit="steps" color="purple" />
+        <StatCard label="Weight"              value={stats.weight}          unit="lbs"       color="orange" />
       </div>
 
       <div className="dashboard-grid">
         <div className="card steps-card">
           <h2 className="card-title">Steps This Week</h2>
           <div className="bar-chart">
-            {WEEKLY_DATA.map(({ day, steps, workout }) => (
-              <div key={day} className="bar-col">
-                <div className="bar-wrap">
-                  <div
-                    className={`bar ${workout ? 'bar--workout' : ''}`}
-                    style={{ height: `${(steps / maxSteps) * 100}%` }}
-                  />
+            {weeklyData.map(({ day, steps, workout }) => {
+              const max = Math.max(...weeklyData.map(d => d.steps), 1)
+              return (
+                <div key={day} className="bar-col">
+                  <div className="bar-wrap">
+                    <div
+                      className={`bar ${workout ? 'bar--workout' : ''}`}
+                      style={{ height: `${(steps / max) * 100}%` }}
+                    />
+                  </div>
+                  <span className="bar-label">{day}</span>
                 </div>
-                <span className="bar-label">{day}</span>
-              </div>
-            ))}
+              )
+            })}
           </div>
+          {!loading && logs.length === 0 && (
+            <p className="card-empty">Start logging daily steps to see your chart.</p>
+          )}
         </div>
 
         <div className="card sessions-card">
           <h2 className="card-title">Recent Sessions</h2>
-          <div className="session-list">
-            {RECENT_SESSIONS.map((s, i) => (
-              <div key={i} className="session-row">
-                <div className="session-left">
-                  <span className="session-date">{s.date}</span>
-                  <span className="session-name">{s.exercise}</span>
-                  <span className="session-meta">{s.sets}×{s.reps}</span>
-                </div>
-                <ScorePill score={s.score} />
-              </div>
-            ))}
-          </div>
+          {loading ? (
+            <p className="card-empty">Loading…</p>
+          ) : sessions.length > 0 ? (
+            <div className="session-list">
+              {sessions.slice(0, 5).map(s => {
+                const exCount = s.exercises?.length ?? 0
+                const setCount = s.exercises?.reduce((t, e) => t + (e.sets?.length || 0), 0) ?? 0
+                return (
+                  <div key={s.id} className="session-row">
+                    <div className="session-left">
+                      <span className="session-date">{formatShortDate(s.date)}</span>
+                      <span className="session-name">{s.label}</span>
+                      <span className="session-meta">{exCount} ex · {setCount} sets</span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <p className="card-empty">No sessions logged yet. Head to Workouts to get started.</p>
+          )}
         </div>
 
         <div className="card coach-card">
           <h2 className="card-title">Coach Says</h2>
           <div className="coach-bubble">
-            <p>
-              Nice work this week! You've hit 4 of your 5 workout days with an 84 avg form score.
-              Your squat depth has improved since Monday — keep that knee tracking focus for today's session.
-            </p>
-            <p className="coach-sub">Feeling up for legs today, or should we plan something lighter?</p>
+            <p>Head to the AI Coach tab to start a conversation. Once you've logged workouts and daily data, your coach will reference it automatically.</p>
+            <p className="coach-sub">What are we working on today?</p>
           </div>
           <button className="btn-accent">Open Chat</button>
         </div>
       </div>
     </div>
   )
+}
+
+function formatShortDate(iso) {
+  if (!iso) return ''
+  return new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
 function StatCard({ label, value, unit, color }) {
@@ -98,9 +150,4 @@ function StatCard({ label, value, unit, color }) {
       <div className="stat-label">{label}</div>
     </div>
   )
-}
-
-function ScorePill({ score }) {
-  const color = score >= 90 ? 'green' : score >= 75 ? 'blue' : 'orange'
-  return <span className={`score-pill score-pill--${color}`}>{score}</span>
 }

@@ -3,6 +3,17 @@
   max-width: 900px;
 }
 
+.already-logged-note {
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  border-radius: var(--radius-sm);
+  color: var(--blue);
+  font-size: 12px;
+  padding: 9px 12px;
+  margin-bottom: 4px;
+  line-height: 1.5;
+}
+
 .today-badge {
   background: var(--bg-card);
   border: 1px solid var(--border);

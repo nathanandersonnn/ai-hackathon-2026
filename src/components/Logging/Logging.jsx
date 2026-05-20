@@ -1,30 +1,58 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { getDailyLogs, upsertDailyLog } from '../../lib/supabase/dailyLogs'
 import './Logging.css'
 
-const HISTORY = [
-  { date: 'May 15', weight: 175.2, steps: 9800 },
-  { date: 'May 14', weight: 175.6, steps: 7200 },
-  { date: 'May 13', weight: 174.8, steps: 11400 },
-  { date: 'May 12', weight: 175.0, steps: 8600 },
-  { date: 'May 11', weight: 175.4, steps: 6100 },
-  { date: 'May 10', weight: 176.0, steps: 9200 },
-  { date: 'May 9',  weight: 176.2, steps: 10500 },
-]
+function formatDate(isoDate) {
+  return new Date(isoDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
 
 export default function Logging() {
+  const todayIso = new Date().toISOString().slice(0, 10)
+
   const [weight, setWeight]   = useState('')
   const [steps, setSteps]     = useState('')
   const [saved, setSaved]     = useState(false)
-  const [history, setHistory] = useState(HISTORY)
+  const [history, setHistory] = useState([])
+  const [loading, setLoading] = useState(true)
 
-  function handleSave() {
+  // True if today's row already exists — drives "Update" vs "Save" labeling
+  const todayLog = history.find(r => r.date === todayIso)
+  const alreadyLogged = !!todayLog
+
+  useEffect(() => {
+    getDailyLogs()
+      .then(rows => {
+        setHistory(rows)
+        // Pre-fill inputs with today's existing values if logged
+        const t = rows.find(r => r.date === todayIso)
+        if (t) {
+          setWeight(t.weight != null ? String(t.weight) : '')
+          setSteps(t.steps  != null ? String(t.steps)  : '')
+        }
+      })
+      .catch(err => console.error('Failed to load daily logs:', err))
+      .finally(() => setLoading(false))
+  }, [todayIso])
+
+  async function handleSave() {
     if (!weight && !steps) return
-    const today = 'May 16'
-    setHistory(prev => [{ date: today, weight: parseFloat(weight) || null, steps: parseInt(steps) || null }, ...prev])
-    setWeight('')
-    setSteps('')
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2500)
+    try {
+      const row = await upsertDailyLog({
+        date: todayIso,
+        weight: weight ? parseFloat(weight) : null,
+        steps:  steps  ? parseInt(steps)    : null,
+      })
+      // One row per day — replace today's row in place
+      setHistory(prev => {
+        const filtered = prev.filter(r => r.date !== todayIso)
+        return [row, ...filtered]
+      })
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2500)
+    } catch (err) {
+      console.error('Save failed:', err)
+      alert('Could not save — check console for details.')
+    }
   }
 
   return (
@@ -34,7 +62,9 @@ export default function Logging() {
           <h1 className="page-title">Daily Log</h1>
           <p className="page-subtitle">Track your weight and steps each day</p>
         </div>
-        <div className="today-badge">Today — May 16</div>
+        <div className="today-badge">
+          {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+        </div>
       </header>
 
       <div className="logging-layout">
@@ -43,15 +73,12 @@ export default function Logging() {
 
           <div className="log-inputs">
             <div className="log-field">
-              <label className="field-label">
-                <WeightIcon />
-                Weight
-              </label>
+              <label className="field-label">Weight</label>
               <div className="input-wrap">
                 <input
                   type="number"
                   className="log-input"
-                  placeholder="175"
+                  placeholder="0"
                   value={weight}
                   onChange={e => setWeight(e.target.value)}
                   step="0.1"
@@ -61,15 +88,12 @@ export default function Logging() {
             </div>
 
             <div className="log-field">
-              <label className="field-label">
-                <StepsIcon />
-                Steps
-              </label>
+              <label className="field-label">Steps</label>
               <div className="input-wrap">
                 <input
                   type="number"
                   className="log-input"
-                  placeholder="10000"
+                  placeholder="0"
                   value={steps}
                   onChange={e => setSteps(e.target.value)}
                 />
@@ -82,45 +106,59 @@ export default function Logging() {
             <StepsProgressBar steps={parseInt(steps)} goal={10000} />
           )}
 
+          {alreadyLogged && !saved && (
+            <p className="already-logged-note">
+              You've already logged today. Editing will update your existing entry.
+            </p>
+          )}
+
           <button
             className={`btn-accent save-btn ${saved ? 'save-btn--saved' : ''}`}
             onClick={handleSave}
-            disabled={saved}
+            disabled={saved || (!weight && !steps)}
           >
-            {saved ? '✓ Saved!' : 'Save Today\'s Log'}
+            {saved
+              ? (alreadyLogged ? '✓ Updated!' : '✓ Saved!')
+              : (alreadyLogged ? "Update Today's Log" : "Save Today's Log")}
           </button>
         </div>
 
         <div className="log-history-card">
           <h2 className="card-title">History</h2>
-          <div className="history-table">
-            <div className="table-header">
-              <span>Date</span>
-              <span>Weight</span>
-              <span>Steps</span>
-              <span>Steps Goal</span>
-            </div>
-            {history.map((row, i) => (
-              <div key={i} className="table-row">
-                <span className="row-date">{row.date}</span>
-                <span className="row-weight">{row.weight ? `${row.weight} lbs` : '—'}</span>
-                <span className="row-steps">{row.steps ? row.steps.toLocaleString() : '—'}</span>
-                <span>
-                  {row.steps ? (
-                    <div className="mini-bar-track">
-                      <div
-                        className="mini-bar-fill"
-                        style={{
-                          width: `${Math.min((row.steps / 10000) * 100, 100)}%`,
-                          background: row.steps >= 10000 ? 'var(--accent)' : 'var(--blue)'
-                        }}
-                      />
-                    </div>
-                  ) : '—'}
-                </span>
+          {loading ? (
+            <p className="log-empty">Loading…</p>
+          ) : history.length > 0 ? (
+            <div className="history-table">
+              <div className="table-header">
+                <span>Date</span>
+                <span>Weight</span>
+                <span>Steps</span>
+                <span>Steps Goal</span>
               </div>
-            ))}
-          </div>
+              {history.map((row, i) => (
+                <div key={i} className="table-row">
+                  <span className="row-date">{formatDate(row.date)}</span>
+                  <span className="row-weight">{row.weight ? `${row.weight} lbs` : '—'}</span>
+                  <span className="row-steps">{row.steps ? row.steps.toLocaleString() : '—'}</span>
+                  <span>
+                    {row.steps ? (
+                      <div className="mini-bar-track">
+                        <div
+                          className="mini-bar-fill"
+                          style={{
+                            width: `${Math.min((row.steps / 10000) * 100, 100)}%`,
+                            background: row.steps >= 10000 ? 'var(--accent)' : 'var(--blue)'
+                          }}
+                        />
+                      </div>
+                    ) : '—'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="log-empty">No logs yet. Start by logging today above.</p>
+          )}
         </div>
       </div>
     </div>
@@ -146,22 +184,5 @@ function StepsProgressBar({ steps, goal }) {
       </div>
       {met && <p className="steps-met-msg">Goal met! 🎉</p>}
     </div>
-  )
-}
-
-function WeightIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="5" r="3"/><path d="M6.5 8a2 2 0 0 0-1.905 2.608l1.705 5.684A3 3 0 0 0 9.169 18h5.662a3 3 0 0 0 2.87-2.119l1.704-5.683A2 2 0 0 0 17.5 8z"/>
-    </svg>
-  )
-}
-
-function StepsIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M13 5c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2z"/><path d="M9 19c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2z"/>
-      <path d="M15 7l-3 5-4 1 3 4-1 4"/>
-    </svg>
   )
 }

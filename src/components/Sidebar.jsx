@@ -10,7 +10,12 @@ const NAV_ITEMS = [
   { id: 'goals',     label: 'Goals',      icon: GoalIcon },
 ]
 
-export default function Sidebar({ active, onNavigate }) {
+export default function Sidebar({ active, onNavigate, user, onSignOut }) {
+  const username = user?.user_metadata?.username?.trim() || null
+  const emailPrefix = user?.email?.split('@')[0] ?? ''
+  const displayName = username || emailPrefix || 'Sign in'
+  const initial = (username?.[0] ?? user?.email?.[0] ?? '?').toUpperCase()
+
   return (
     <aside className="sidebar">
       <div className="sidebar-logo">
@@ -39,11 +44,24 @@ export default function Sidebar({ active, onNavigate }) {
         <span>About Us</span>
       </button>
 
-      <div className="sidebar-user">
-        <div className="user-avatar">N</div>
+      <div
+        className="sidebar-user sidebar-user--clickable"
+        onClick={() => onNavigate(user ? 'account' : 'auth')}
+        role="button"
+      >
+        <div className="user-avatar">{initial}</div>
         <div className="user-info">
-          <div className="user-name">Nathan</div>
-          <div className="user-streak">🔥 5 day streak</div>
+          <div className="user-name">{user ? displayName : 'Sign in'}</div>
+          {user ? (
+            <button
+              className="user-signout"
+              onClick={(e) => { e.stopPropagation(); onSignOut() }}
+            >
+              Sign out
+            </button>
+          ) : (
+            <div className="user-streak">Click to log in</div>
+          )}
         </div>
       </div>
     </aside>

@@ -29,7 +29,6 @@ export default function Calories() {
   const [foodText, setFoodText] = useState('')
   const [photoPreview, setPhotoPreview] = useState(null)
   const [photoFile, setPhotoFile] = useState(null)
-  const [photoName, setPhotoName] = useState('')
   const [log, setLog] = useState([])
   const [logLoading, setLogLoading] = useState(false)
   const [photoLoading, setPhotoLoading] = useState(false)
@@ -69,7 +68,6 @@ export default function Calories() {
     const file = e.target.files[0]
     if (!file) return
     setPhotoFile(file)
-    setPhotoName(file.name)
     setPhotoPreview(URL.createObjectURL(file))
   }
 
@@ -81,7 +79,6 @@ export default function Calories() {
       setLog(prev => [...prev, { ...result, source: 'photo' }])
       setPhotoPreview(null)
       setPhotoFile(null)
-      setPhotoName('')
       if (fileRef.current) fileRef.current.value = ''
     } catch (err) {
       console.error('Photo analysis failed:', err)

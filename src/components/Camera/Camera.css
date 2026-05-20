@@ -150,6 +150,48 @@
   color: var(--accent);
 }
 
+.weight-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.weight-input {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: var(--font-display);
+  font-weight: 600;
+  width: 90px;
+  transition: border-color 0.15s;
+}
+
+.weight-input:focus { border-color: var(--accent); outline: none; }
+.weight-input::placeholder { color: var(--text-muted); font-weight: 400; }
+.weight-input:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.unit-toggle {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.12s;
+}
+
+.unit-toggle--active {
+  background: var(--accent-glow);
+  border-color: rgba(163,230,53,0.4);
+  color: var(--accent);
+}
+
+.unit-toggle:disabled { opacity: 0.4; cursor: not-allowed; }
+
 .control-btns {
   display: flex;
   gap: 10px;
@@ -306,6 +348,50 @@
   color: var(--text-muted);
   line-height: 1.6;
 }
+
+.set-log {
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+
+.set-log-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+}
+
+.set-log-table {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.set-log-header {
+  display: grid;
+  grid-template-columns: 1fr 40px 60px 44px;
+  padding: 4px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.set-log-row {
+  display: grid;
+  grid-template-columns: 1fr 40px 60px 44px;
+  align-items: center;
+  padding: 7px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  transition: background 0.1s;
+}
+
+.set-log-row:hover { background: var(--bg-elevated); }
 
 .post-session {
   border-top: 1px solid var(--border);

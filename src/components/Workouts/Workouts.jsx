@@ -1,7 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { EXERCISE_LIBRARY, MUSCLE_GROUPS } from './exerciseLibrary'
+import { getWorkoutSessions, saveWorkoutSession, deleteWorkoutSession } from '../../lib/supabase/workouts'
 import './Workouts.css'
 
-const WORKOUTS = [
+// ── Suggested workout templates ──────────────────────────────
+const WORKOUT_TEMPLATES = [
   {
     id: 'home-fast',
     label: 'Fast At Home',
@@ -10,12 +13,12 @@ const WORKOUTS = [
     color: 'accent',
     description: 'No equipment needed. High intensity, full body burn.',
     exercises: [
-      { name: 'Jump Squats',       sets: 3, reps: '15',   rest: '30s' },
-      { name: 'Push-ups',          sets: 3, reps: '12',   rest: '30s' },
-      { name: 'Mountain Climbers', sets: 3, reps: '20',   rest: '30s' },
-      { name: 'Glute Bridges',     sets: 3, reps: '15',   rest: '30s' },
-      { name: 'Plank',             sets: 3, reps: '45s',  rest: '30s' },
-      { name: 'Burpees',           sets: 3, reps: '10',   rest: '45s' },
+      { name: 'Jump Squats',       sets: 3, reps: '4-8' },
+      { name: 'Push-ups',          sets: 3, reps: '4-8' },
+      { name: 'Mountain Climbers', sets: 3, reps: '4-8' },
+      { name: 'Glute Bridges',     sets: 3, reps: '4-8' },
+      { name: 'Plank',             sets: 3, reps: '45s' },
+      { name: 'Burpees',           sets: 3, reps: '4-8' },
     ],
   },
   {
@@ -26,58 +29,66 @@ const WORKOUTS = [
     color: 'blue',
     description: 'Compound lifts only. In and out, no fluff.',
     exercises: [
-      { name: 'Barbell Squat',       sets: 3, reps: '8',  rest: '60s' },
-      { name: 'Bench Press',         sets: 3, reps: '8',  rest: '60s' },
-      { name: 'Barbell Row',         sets: 3, reps: '8',  rest: '60s' },
-      { name: 'Overhead Press',      sets: 2, reps: '10', rest: '60s' },
-      { name: 'Romanian Deadlift',   sets: 2, reps: '10', rest: '60s' },
-    ],
-  },
-  {
-    id: 'upper-lower',
-    label: 'Upper / Lower Split',
-    icon: '🔁',
-    tag: '4-day split',
-    color: 'purple',
-    description: 'Alternate upper and lower days across the week.',
-    days: [
-      {
-        label: 'Upper A',
-        exercises: [
-          { name: 'Bench Press',     sets: 4, reps: '6',  rest: '90s' },
-          { name: 'Barbell Row',     sets: 4, reps: '6',  rest: '90s' },
-          { name: 'Overhead Press',  sets: 3, reps: '8',  rest: '75s' },
-          { name: 'Pull-ups',        sets: 3, reps: '8',  rest: '75s' },
-          { name: 'Tricep Dips',     sets: 3, reps: '10', rest: '60s' },
-          { name: 'Bicep Curls',     sets: 3, reps: '10', rest: '60s' },
-        ],
-      },
-      {
-        label: 'Lower A',
-        exercises: [
-          { name: 'Barbell Squat',   sets: 4, reps: '6',  rest: '90s' },
-          { name: 'Romanian DL',     sets: 4, reps: '8',  rest: '90s' },
-          { name: 'Leg Press',       sets: 3, reps: '10', rest: '75s' },
-          { name: 'Leg Curl',        sets: 3, reps: '10', rest: '60s' },
-          { name: 'Calf Raises',     sets: 4, reps: '15', rest: '45s' },
-        ],
-      },
+      { name: 'Barbell Squat',     sets: 3, reps: '4-8' },
+      { name: 'Bench Press',       sets: 3, reps: '4-8' },
+      { name: 'Barbell Row',       sets: 3, reps: '4-8' },
+      { name: 'Overhead Press',    sets: 2, reps: '4-8' },
+      { name: 'Romanian Deadlift', sets: 2, reps: '4-8' },
     ],
   },
   {
     id: 'full-body',
     label: 'Full Body',
     icon: '💪',
-    tag: '3-day split',
+    tag: 'Full body',
     color: 'orange',
-    description: 'Hit everything three times a week. Great for building consistency.',
+    description: 'High-variety one-set push: hit every major group in a single session.',
     exercises: [
-      { name: 'Squat',              sets: 3, reps: '8',  rest: '90s' },
-      { name: 'Bench Press',        sets: 3, reps: '8',  rest: '90s' },
-      { name: 'Deadlift',           sets: 3, reps: '5',  rest: '120s' },
-      { name: 'Pull-ups / Lat PD',  sets: 3, reps: '8',  rest: '75s' },
-      { name: 'Overhead Press',     sets: 3, reps: '8',  rest: '75s' },
-      { name: 'Plank',              sets: 3, reps: '45s', rest: '45s' },
+      { name: 'Lat Pull Downs',              sets: 1, reps: '4-8' },
+      { name: 'Kelso Shrug',                 sets: 1, reps: '4-8' },
+      { name: 'Single Leg Extensions',       sets: 2, reps: '4-8' },
+      { name: 'Lying Leg Curl',              sets: 1, reps: '4-8' },
+      { name: 'Cable Flies',                 sets: 1, reps: '4-8' },
+      { name: 'Crunches w/ Weight',          sets: 1, reps: '4-8' },
+      { name: 'Preacher Curl',               sets: 1, reps: '4-8' },
+      { name: 'Single Arm Tricep Extension', sets: 1, reps: '4-8' },
+      { name: 'Leg Press',                   sets: 1, reps: '4-8' },
+      { name: 'Close Grip Lat Pulldown',     sets: 1, reps: '4-8' },
+      { name: 'Shoulder Press',              sets: 1, reps: '4-8' },
+      { name: 'Calf Raise',                  sets: 1, reps: '4-8' },
+    ],
+  },
+  {
+    id: 'upper-day',
+    label: 'Upper Day',
+    icon: '🔁',
+    tag: 'Upper / Lower',
+    color: 'purple',
+    description: 'Pull, push, and shoulders. Pairs with Lower Day on the next session.',
+    exercises: [
+      { name: 'Lat Pull Downs',              sets: 2, reps: '4-8' },
+      { name: 'Close Grip Lat Pulldown',     sets: 1, reps: '4-8' },
+      { name: 'Shoulder Press',              sets: 2, reps: '4-8' },
+      { name: 'Single Arm Tricep Extension', sets: 1, reps: '4-8' },
+      { name: 'Smith Machine Bench',         sets: 2, reps: '4-8' },
+      { name: 'DB Bicep Curls',              sets: 1, reps: '4-8' },
+      { name: 'Kelso Shrug',                 sets: 2, reps: '4-8' },
+    ],
+  },
+  {
+    id: 'lower-day',
+    label: 'Lower Day',
+    icon: '🦵',
+    tag: 'Upper / Lower',
+    color: 'purple',
+    description: 'Quads, hamstrings, glutes, calves, and core. Pairs with Upper Day.',
+    exercises: [
+      { name: 'Single Leg Extensions',       sets: 2, reps: '4-8' },
+      { name: 'Lying Leg Curl',              sets: 2, reps: '4-8' },
+      { name: 'Leg Press',                   sets: 2, reps: '4-8' },
+      { name: 'Calf Raise',                  sets: 2, reps: '4-8' },
+      { name: 'Hip Thrust',                  sets: 1, reps: '4-8' },
+      { name: 'Crunches w/ Weight',          sets: 1, reps: '4-8' },
     ],
   },
   {
@@ -86,43 +97,146 @@ const WORKOUTS = [
     icon: '🏃',
     tag: 'Endurance',
     color: 'red',
-    description: 'Pick your format — steady state, intervals, or a mix.',
+    description: 'Steady state, intervals, or a mix.',
     exercises: [
-      { name: 'Warm-up walk/jog',      sets: 1, reps: '5 min',  rest: '—' },
-      { name: 'Steady-state run',       sets: 1, reps: '20 min', rest: '—' },
-      { name: 'Sprint intervals (20/40s on/off)', sets: 6, reps: '20s', rest: '40s' },
-      { name: 'Jump rope',              sets: 3, reps: '2 min',  rest: '60s' },
-      { name: 'Cool-down walk',         sets: 1, reps: '5 min',  rest: '—' },
+      { name: 'Warm-up walk/jog',  sets: 1, reps: '5 min' },
+      { name: 'Steady-state run',  sets: 1, reps: '20 min' },
+      { name: 'Sprint intervals',  sets: 6, reps: '20s' },
+      { name: 'Cool-down walk',    sets: 1, reps: '5 min' },
     ],
   },
 ]
 
-export default function Workouts() {
-  const [open, setOpen] = useState(null)
-  const [activeDay, setActiveDay] = useState({})
+// TODO: fetch workout history from Supabase workout_sessions table
 
-  function toggle(id) {
-    setOpen(prev => prev === id ? null : id)
+// ── Empty set / exercise builders ────────────────────────────
+const emptySet = () => ({ reps: '', weight: '' })
+const emptyExercise = () => ({ name: '', sets: [emptySet()] })
+
+function formatHistoryDate(isoDate) {
+  if (!isoDate) return ''
+  const d = new Date(isoDate + 'T00:00:00')
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+function templateToLogSession(template) {
+  return {
+    label: template.label,
+    exercises: template.exercises.map(ex => ({
+      name: ex.name,
+      sets: Array.from({ length: ex.sets }, () => emptySet()),
+    })),
+  }
+}
+
+function historyToLogSession(entry) {
+  return {
+    label: entry.label,
+    exercises: entry.exercises.map(ex => ({
+      name: ex.name,
+      sets: ex.sets.map(s => ({ reps: String(s.reps), weight: String(s.weight) })),
+    })),
+  }
+}
+
+// ── Main component ───────────────────────────────────────────
+export default function Workouts() {
+  const [tab, setTab] = useState('browse')           // 'browse' | 'history' | 'log'
+  const [openCard, setOpenCard] = useState(null)
+  const [history, setHistory] = useState([])
+  const [historyLoading, setHistoryLoading] = useState(true)
+  const [expandedHistory, setExpandedHistory] = useState(null)
+  const [session, setSession] = useState(null)       // active log session
+
+  useEffect(() => {
+    getWorkoutSessions()
+      .then(setHistory)
+      .catch(err => console.error('Failed to load workouts:', err))
+      .finally(() => setHistoryLoading(false))
+  }, [])
+
+  function startFromTemplate(template) {
+    setSession(templateToLogSession(template))
+    setTab('log')
+  }
+
+  function startFromHistory(entry) {
+    setSession(historyToLogSession(entry))
+    setTab('log')
+  }
+
+  function startBlank() {
+    setSession({ label: '', exercises: [emptyExercise()] })
+    setTab('log')
+  }
+
+  async function handleDeleteSession(id) {
+    if (!confirm('Delete this workout from your history? This cannot be undone.')) return
+    try {
+      await deleteWorkoutSession(id)
+      setHistory(prev => prev.filter(s => s.id !== id))
+      if (expandedHistory === id) setExpandedHistory(null)
+    } catch (err) {
+      console.error('Delete failed:', err)
+      alert('Could not delete workout — check console.')
+    }
+  }
+
+  async function saveSession() {
+    const cleaned = {
+      label: session.label || 'Workout',
+      exercises: session.exercises
+        .filter(ex => ex.name.trim())
+        .map(ex => ({
+          name: ex.name,
+          sets: ex.sets
+            .filter(s => s.reps)
+            .map(s => ({ reps: Number(s.reps) || 0, weight: Number(s.weight) || 0 })),
+        })),
+    }
+    try {
+      const saved = await saveWorkoutSession(cleaned)
+      setHistory(prev => [saved, ...prev])
+      setSession(null)
+      setTab('history')
+    } catch (err) {
+      console.error('Save workout failed:', err)
+      alert('Could not save workout — check console.')
+    }
   }
 
   return (
     <div className="workouts-view">
       <header className="page-header">
         <div>
-          <h1 className="page-title">Suggested Workouts</h1>
-          <p className="page-subtitle">Pick a format and get moving</p>
+          <h1 className="page-title">Workouts</h1>
+          <p className="page-subtitle">Browse, log, and track your training</p>
         </div>
+        {tab !== 'log' && (
+          <button className="btn-accent" onClick={startBlank}>+ Log Workout</button>
+        )}
       </header>
 
-      <div className="workout-cards">
-        {WORKOUTS.map(w => {
-          const isOpen = open === w.id
-          const dayKey = activeDay[w.id] ?? 0
-          const exercises = w.days ? w.days[dayKey].exercises : w.exercises
+      <div className="workouts-tabs">
+        {[['browse', 'Browse'], ['history', 'History'], ['log', 'Log Session']].map(([id, label]) => (
+          (id !== 'log' || tab === 'log') && (
+            <button
+              key={id}
+              className={`workouts-tab ${tab === id ? 'workouts-tab--active' : ''}`}
+              onClick={() => { if (id !== 'log') setTab(id) }}
+            >
+              {label}
+            </button>
+          )
+        ))}
+      </div>
 
-          return (
-            <div key={w.id} className={`workout-card workout-card--${w.color} ${isOpen ? 'workout-card--open' : ''}`}>
-              <button className="workout-card-header" onClick={() => toggle(w.id)}>
+      {/* ── BROWSE ── */}
+      {tab === 'browse' && (
+        <div className="workout-cards">
+          {WORKOUT_TEMPLATES.map(w => (
+            <div key={w.id} className={`workout-card workout-card--${w.color} ${openCard === w.id ? 'workout-card--open' : ''}`}>
+              <button className="workout-card-header" onClick={() => setOpenCard(openCard === w.id ? null : w.id)}>
                 <div className="workout-card-left">
                   <span className="workout-icon">{w.icon}</span>
                   <div className="workout-title-block">
@@ -132,65 +246,362 @@ export default function Workouts() {
                 </div>
                 <div className="workout-card-right">
                   <span className={`workout-tag workout-tag--${w.color}`}>{w.tag}</span>
-                  <ChevronIcon open={isOpen} />
+                  <ChevronIcon open={openCard === w.id} />
                 </div>
               </button>
 
-              {isOpen && (
+              {openCard === w.id && (
                 <div className="workout-body">
-                  {w.days && (
-                    <div className="day-tabs">
-                      {w.days.map((d, i) => (
-                        <button
-                          key={i}
-                          className={`day-tab ${(activeDay[w.id] ?? 0) === i ? 'day-tab--active' : ''}`}
-                          onClick={() => setActiveDay(prev => ({ ...prev, [w.id]: i }))}
-                        >
-                          {d.label}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
                   <div className="exercise-table">
                     <div className="ex-table-header">
-                      <span>Exercise</span>
-                      <span>Sets</span>
-                      <span>Reps / Time</span>
-                      <span>Rest</span>
+                      <span>Exercise</span><span>Sets</span><span>Reps / Time</span>
                     </div>
-                    {exercises.map((ex, i) => (
+                    {w.exercises.map((ex, i) => (
                       <div key={i} className="ex-row">
                         <span className="ex-name">{ex.name}</span>
                         <span className="ex-sets">{ex.sets}</span>
                         <span className="ex-reps">{ex.reps}</span>
-                        <span className="ex-rest">{ex.rest}</span>
                       </div>
                     ))}
                   </div>
-
                   <div className="workout-actions">
-                    <button className="btn-accent">Start Session</button>
-                    <button className="btn-ghost">Save to My Workouts</button>
+                    <button className="btn-accent" onClick={() => startFromTemplate(w)}>Start Session</button>
                   </div>
                 </div>
               )}
             </div>
-          )
-        })}
+          ))}
+        </div>
+      )}
+
+      {/* ── HISTORY ── */}
+      {tab === 'history' && (
+        <div className="history-list">
+          {historyLoading && (
+            <p className="empty-state">Loading…</p>
+          )}
+          {!historyLoading && history.length === 0 && (
+            <p className="empty-state">No workouts logged yet. Hit "+ Log Workout" to start.</p>
+          )}
+          {history.map(entry => (
+            <div key={entry.id} className={`history-card ${expandedHistory === entry.id ? 'history-card--open' : ''}`}>
+              <button className="history-card-header" onClick={() => setExpandedHistory(expandedHistory === entry.id ? null : entry.id)}>
+                <div className="history-card-left">
+                  <span className="history-label">{entry.label}</span>
+                  <span className="history-meta">
+                    {formatHistoryDate(entry.date)} · {entry.exercises.length} exercise{entry.exercises.length !== 1 ? 's' : ''}
+                    {' · '}{entry.exercises.reduce((t, e) => t + e.sets.length, 0)} sets
+                  </span>
+                </div>
+                <div className="history-card-right">
+                  <button
+                    className="btn-ghost repeat-btn"
+                    onClick={e => { e.stopPropagation(); startFromHistory(entry) }}
+                  >
+                    Repeat
+                  </button>
+                  <button
+                    className="history-delete-btn"
+                    onClick={e => { e.stopPropagation(); handleDeleteSession(entry.id) }}
+                    title="Delete this workout"
+                  >
+                    ✕
+                  </button>
+                  <ChevronIcon open={expandedHistory === entry.id} />
+                </div>
+              </button>
+
+              {expandedHistory === entry.id && (
+                <div className="history-body">
+                  {entry.exercises.map((ex, ei) => (
+                    <div key={ei} className="history-exercise">
+                      <p className="history-ex-name">{ex.name}</p>
+                      <div className="history-sets-table">
+                        <div className="history-sets-header">
+                          <span>Set</span><span>Reps</span><span>Weight</span>
+                        </div>
+                        {ex.sets.map((s, si) => (
+                          <div key={si} className="history-set-row">
+                            <span className="set-num">{si + 1}</span>
+                            <span>{s.reps} reps</span>
+                            <span>{s.weight ? `${s.weight} lbs` : '—'}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── LOG SESSION ── */}
+      {tab === 'log' && session && (
+        <LogSession
+          session={session}
+          onChange={setSession}
+          onSave={saveSession}
+          onCancel={() => { setSession(null); setTab('browse') }}
+        />
+      )}
+    </div>
+  )
+}
+
+// ── Log Session sub-component ────────────────────────────────
+function LogSession({ session, onChange, onSave, onCancel }) {
+  const [pickerOpen, setPickerOpen] = useState(false)
+
+  function updateLabel(val) {
+    onChange(s => ({ ...s, label: val }))
+  }
+
+  function updateExerciseName(ei, val) {
+    onChange(s => {
+      const exercises = [...s.exercises]
+      exercises[ei] = { ...exercises[ei], name: val }
+      return { ...s, exercises }
+    })
+  }
+
+  function updateSet(ei, si, field, val) {
+    onChange(s => {
+      const exercises = [...s.exercises]
+      const sets = [...exercises[ei].sets]
+      sets[si] = { ...sets[si], [field]: val }
+      exercises[ei] = { ...exercises[ei], sets }
+      return { ...s, exercises }
+    })
+  }
+
+  function addSet(ei) {
+    onChange(s => {
+      const exercises = [...s.exercises]
+      exercises[ei] = { ...exercises[ei], sets: [...exercises[ei].sets, emptySet()] }
+      return { ...s, exercises }
+    })
+  }
+
+  function removeSet(ei, si) {
+    onChange(s => {
+      const exercises = [...s.exercises]
+      const sets = exercises[ei].sets.filter((_, i) => i !== si)
+      exercises[ei] = { ...exercises[ei], sets }
+      return { ...s, exercises }
+    })
+  }
+
+  function addExercise(name) {
+    onChange(s => ({ ...s, exercises: [...s.exercises, { name, sets: [emptySet()] }] }))
+  }
+
+  function removeExercise(ei) {
+    onChange(s => ({ ...s, exercises: s.exercises.filter((_, i) => i !== ei) }))
+  }
+
+  return (
+    <>
+      {pickerOpen && (
+        <ExercisePicker
+          onSelect={name => { addExercise(name); setPickerOpen(false) }}
+          onClose={() => setPickerOpen(false)}
+        />
+      )}
+
+      <div className="log-session">
+        <div className="log-session-header">
+          <input
+            className="log-title-input"
+            placeholder="Workout name (e.g. Push Day)"
+            value={session.label}
+            onChange={e => updateLabel(e.target.value)}
+          />
+        </div>
+
+        <div className="log-exercises">
+          {session.exercises.map((ex, ei) => (
+            <div key={ei} className="log-exercise-card">
+              <div className="log-ex-header">
+                <input
+                  className="log-ex-name-input"
+                  placeholder="Exercise name"
+                  value={ex.name}
+                  onChange={e => updateExerciseName(ei, e.target.value)}
+                />
+                {session.exercises.length > 1 && (
+                  <button className="remove-ex-btn" onClick={() => removeExercise(ei)}>Remove</button>
+                )}
+              </div>
+
+              <div className="log-sets-table">
+                <div className="log-sets-header">
+                  <span>Set</span>
+                  <span>Reps</span>
+                  <span>Weight (lbs)</span>
+                  <span />
+                </div>
+                {ex.sets.map((s, si) => (
+                  <div key={si} className="log-set-row">
+                    <span className="log-set-num">{si + 1}</span>
+                    <input
+                      className="log-set-input"
+                      type="number"
+                      placeholder="—"
+                      value={s.reps}
+                      onChange={e => updateSet(ei, si, 'reps', e.target.value)}
+                    />
+                    <input
+                      className="log-set-input"
+                      type="number"
+                      placeholder="—"
+                      value={s.weight}
+                      onChange={e => updateSet(ei, si, 'weight', e.target.value)}
+                    />
+                    <button
+                      className="remove-set-btn"
+                      onClick={() => removeSet(ei, si)}
+                      disabled={ex.sets.length === 1}
+                    >×</button>
+                  </div>
+                ))}
+              </div>
+
+              <button className="add-set-btn" onClick={() => addSet(ei)}>+ Add Set</button>
+            </div>
+          ))}
+        </div>
+
+        <button className="add-exercise-btn" onClick={() => setPickerOpen(true)}>+ Add Exercise</button>
+
+        <div className="log-session-actions">
+          <button className="btn-ghost" onClick={onCancel}>Cancel</button>
+          <button className="btn-accent" onClick={onSave}>Save Workout</button>
+        </div>
+      </div>
+    </>
+  )
+}
+
+// ── Exercise Picker modal ────────────────────────────────────
+function ExercisePicker({ onSelect, onClose }) {
+  const [search, setSearch] = useState('')
+  const [muscle, setMuscle] = useState('All')
+  const [customName, setCustomName] = useState('')
+  const [showCustom, setShowCustom] = useState(false)
+
+  const filtered = EXERCISE_LIBRARY.filter(ex => {
+    const matchesMuscle = muscle === 'All' || ex.muscle === muscle
+    const matchesSearch = ex.name.toLowerCase().includes(search.toLowerCase())
+    return matchesMuscle && matchesSearch
+  })
+
+  // Group by muscle for display
+  const grouped = filtered.reduce((acc, ex) => {
+    if (!acc[ex.muscle]) acc[ex.muscle] = []
+    acc[ex.muscle].push(ex)
+    return acc
+  }, {})
+
+  return (
+    <div className="picker-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="picker-modal">
+        <div className="picker-header">
+          <h2 className="picker-title">Add Exercise</h2>
+          <button className="picker-close" onClick={onClose}>✕</button>
+        </div>
+
+        <div className="picker-search-wrap">
+          <SearchIcon />
+          <input
+            className="picker-search"
+            placeholder="Search exercises…"
+            value={search}
+            onChange={e => { setSearch(e.target.value); setShowCustom(false) }}
+            autoFocus
+          />
+          {search && (
+            <button className="picker-clear" onClick={() => setSearch('')}>✕</button>
+          )}
+        </div>
+
+        <div className="picker-muscle-pills">
+          {MUSCLE_GROUPS.map(g => (
+            <button
+              key={g}
+              className={`muscle-pill ${muscle === g ? 'muscle-pill--active' : ''}`}
+              onClick={() => setMuscle(g)}
+            >
+              {g}
+            </button>
+          ))}
+        </div>
+
+        <div className="picker-list">
+          {Object.entries(grouped).map(([group, exercises]) => (
+            <div key={group} className="picker-group">
+              <p className="picker-group-label">{group}</p>
+              {exercises.map(ex => (
+                <button
+                  key={ex.name}
+                  className="picker-exercise-row"
+                  onClick={() => onSelect(ex.name)}
+                >
+                  {ex.name}
+                </button>
+              ))}
+            </div>
+          ))}
+
+          {filtered.length === 0 && (
+            <p className="picker-empty">No matches for "{search}"</p>
+          )}
+        </div>
+
+        <div className="picker-custom">
+          {showCustom ? (
+            <div className="custom-input-row">
+              <input
+                className="custom-name-input"
+                placeholder="Exercise name…"
+                value={customName}
+                onChange={e => setCustomName(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && customName.trim() && onSelect(customName.trim())}
+                autoFocus
+              />
+              <button
+                className="btn-accent"
+                onClick={() => customName.trim() && onSelect(customName.trim())}
+                disabled={!customName.trim()}
+              >
+                Add
+              </button>
+              <button className="btn-ghost" onClick={() => setShowCustom(false)}>Cancel</button>
+            </div>
+          ) : (
+            <button className="custom-trigger" onClick={() => setShowCustom(true)}>
+              + Create custom exercise
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )
 }
 
+function SearchIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, color: 'var(--text-muted)' }}>
+      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    </svg>
+  )
+}
+
 function ChevronIcon({ open }) {
   return (
-    <svg
-      className={`chevron ${open ? 'chevron--open' : ''}`}
-      width="16" height="16" viewBox="0 0 24 24"
-      fill="none" stroke="currentColor" strokeWidth="2.5"
-      strokeLinecap="round" strokeLinejoin="round"
-    >
+    <svg className={`chevron ${open ? 'chevron--open' : ''}`} width="16" height="16" viewBox="0 0 24 24"
+      fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
       <polyline points="6 9 12 15 18 9" />
     </svg>
   )

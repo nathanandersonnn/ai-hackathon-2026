@@ -3,18 +3,17 @@ import './Camera.css'
 
 const EXERCISES = ['Squat', 'Push-up', 'Deadlift', 'Lunge']
 
-const MOCK_FEEDBACK = [
-  { type: 'warn',  text: 'Knees tracking slightly inward — push them out over your toes' },
-  { type: 'good',  text: 'Good squat depth — hitting parallel consistently' },
-  { type: 'good',  text: 'Back is neutral throughout the movement' },
-  { type: 'warn',  text: 'Heels rising slightly at the bottom — work on ankle mobility' },
-]
+// TODO: feedback will come from the form-check API after a set is analyzed
 
 export default function Camera() {
   const [active, setActive] = useState(false)
   const [exercise, setExercise] = useState('Squat')
   const [repCount, setRepCount] = useState(0)
   const [formScore, setFormScore] = useState(null)
+  const [weight, setWeight] = useState('')
+  const [weightUnit, setWeightUnit] = useState('lbs')
+  const [setLog, setSetLog] = useState([])
+  const [feedback, setFeedback] = useState([]) // TODO: populate from form-check API after a set ends
 
   function toggleCamera() {
     if (active) {
@@ -25,6 +24,19 @@ export default function Camera() {
       setRepCount(0)
       setFormScore(null)
     }
+  }
+
+  function saveSet() {
+    if (formScore === null) return
+    setSetLog(prev => [...prev, {
+      exercise,
+      reps: repCount,
+      weight: weight ? `${weight} ${weightUnit}` : '—',
+      score: formScore,
+    }])
+    setFormScore(null)
+    setRepCount(0)
+    setWeight('')
   }
 
   function simulateRep() {
@@ -76,6 +88,27 @@ export default function Camera() {
               ))}
             </div>
 
+            <div className="weight-row">
+              <input
+                className="weight-input"
+                type="number"
+                placeholder="Weight"
+                value={weight}
+                onChange={e => setWeight(e.target.value)}
+                disabled={active}
+              />
+              <button
+                className={`unit-toggle ${weightUnit === 'lbs' ? 'unit-toggle--active' : ''}`}
+                onClick={() => setWeightUnit('lbs')}
+                disabled={active}
+              >lbs</button>
+              <button
+                className={`unit-toggle ${weightUnit === 'kg' ? 'unit-toggle--active' : ''}`}
+                onClick={() => setWeightUnit('kg')}
+                disabled={active}
+              >kg</button>
+            </div>
+
             <div className="control-btns">
               {active && (
                 <button className="btn-secondary" onClick={simulateRep}>
@@ -111,28 +144,67 @@ export default function Camera() {
           )}
 
           <div className="feedback-list">
-            {(formScore !== null || active) && MOCK_FEEDBACK.map((f, i) => (
+            {feedback.map((f, i) => (
               <div key={i} className={`feedback-item feedback-item--${f.type}`}>
                 <span className="feedback-icon">{f.type === 'good' ? '✓' : '!'}</span>
                 <span>{f.text}</span>
               </div>
             ))}
 
-            {formScore === null && !active && (
-              <p className="feedback-empty">Start a session to see real-time form feedback here.</p>
+            {feedback.length === 0 && (
+              <p className="feedback-empty">
+                {active ? 'Collecting data…' : 'Start a session to see real-time form feedback here.'}
+              </p>
             )}
           </div>
 
           {formScore !== null && (
             <div className="post-session">
               <p className="post-title">Set Complete</p>
-              <p className="post-sub">{exercise} · {repCount} reps · Score: {formScore}/100</p>
-              <button className="btn-accent" style={{ marginTop: 12 }}>Save to Log</button>
+              <p className="post-sub">
+                {exercise} · {repCount} reps
+                {weight ? ` · ${weight} ${weightUnit}` : ''} · Score: {formScore}/100
+              </p>
+              <button className="btn-accent" style={{ marginTop: 12 }} onClick={saveSet}>
+                Save Set
+              </button>
+            </div>
+          )}
+
+          {setLog.length > 0 && (
+            <div className="set-log">
+              <p className="set-log-title">Session Log</p>
+              <div className="set-log-table">
+                <div className="set-log-header">
+                  <span>Exercise</span>
+                  <span>Reps</span>
+                  <span>Weight</span>
+                  <span>Score</span>
+                </div>
+                {setLog.map((s, i) => (
+                  <div key={i} className="set-log-row">
+                    <span>{s.exercise}</span>
+                    <span>{s.reps}</span>
+                    <span>{s.weight}</span>
+                    <ScorePill score={s.score} />
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
       </div>
     </div>
+  )
+}
+
+function ScorePill({ score }) {
+  const color = score >= 90 ? 'var(--accent)' : score >= 75 ? 'var(--blue)' : 'var(--orange)'
+  return (
+    <span style={{
+      fontSize: 12, fontWeight: 700, color,
+      fontFamily: 'var(--font-display)',
+    }}>{score}</span>
   )
 }
 
