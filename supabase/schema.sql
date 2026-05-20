@@ -63,17 +63,30 @@ create index if not exists milestones_user_idx on milestones (user_id);
 
 -- ─────────────────────────────────────────────
 --  Row Level Security
---  For now, we DISABLE RLS so the demo user_id works
---  without sign-in. Enable + add policies when you wire
---  up Supabase Auth.
+--  RLS is enabled on every table. Each policy restricts
+--  reads + writes so users only ever see their own rows.
 -- ─────────────────────────────────────────────
 
-alter table daily_logs        disable row level security;
-alter table workout_sessions  disable row level security;
-alter table user_goals        disable row level security;
-alter table milestones        disable row level security;
+alter table daily_logs enable row level security;
+create policy "Users access own daily_logs"
+  on daily_logs for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
 
--- When you turn auth on, re-enable RLS and add policies like:
---   alter table daily_logs enable row level security;
---   create policy "users see their own logs" on daily_logs
---     for all using (auth.uid() = user_id);
+alter table workout_sessions enable row level security;
+create policy "Users access own workout_sessions"
+  on workout_sessions for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+alter table user_goals enable row level security;
+create policy "Users access own user_goals"
+  on user_goals for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+alter table milestones enable row level security;
+create policy "Users access own milestones"
+  on milestones for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
