@@ -17,6 +17,41 @@ function parseTextInput(description) {
   return { amount: 1, unit: 'serving', name: description.trim() }
 }
 
+// ── Query cleaning: runs on the food name AFTER quantity/unit are parsed ──────
+
+// Fat-ratio qualifiers like "85/15" or "90/10". The slash breaks sanitizeQuery
+// in usdaLookup, so we pull these out first, convert to "85 15", then
+// re-append so USDA can still match e.g. "Ground beef, 85% lean meat / 15% fat".
+const FAT_RATIO_RE = /\b(\d{1,3})\/(\d{1,3})\b/g
+
+// Phrases that add no value to a USDA query (seasoning/prep language that
+// USDA doesn't index). Stripped after quantity is parsed so we never
+// accidentally lose the food name itself.
+const NOISE_RE = /\b(no\s+\w+|without\s+\w+|plain|unseasoned|raw|cooked|grilled|baked|fried|steamed|boiled|roasted|skinless|boneless)\b/gi
+
+/**
+ * Cleans a parsed food name for a USDA query:
+ *  1. Extracts fat-ratio qualifiers (e.g. "85/15" → saved as "85 15")
+ *  2. Strips noise words/phrases
+ *  3. Re-appends the ratio so USDA can match the lean/fat percentage
+ *
+ * "85/15 ground beef no seasoning" → "ground beef 85 15"
+ */
+function cleanQueryName(name) {
+  const ratios = []
+  const withoutRatios = name.replace(FAT_RATIO_RE, (_, a, b) => {
+    ratios.push(`${a} ${b}`)
+    return ' '
+  })
+
+  const cleaned = withoutRatios
+    .replace(NOISE_RE, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+
+  return ratios.length ? `${cleaned} ${ratios.join(' ')}`.trim() : cleaned
+}
+
 // ── Photo path: LLaVA identifies food + estimates weight in grams ─────────────
 // Always ask for grams so there's no unit ambiguity.
 const IMAGE_IDENTIFY_PROMPT =
@@ -69,8 +104,11 @@ export function useFoodScanner() {
     // Step 1 — parse quantity + unit from text ourselves (reliable)
     const { amount, unit, name } = parseTextInput(description)
 
-    // Step 2 — USDA lookup with the parsed values
-    const usda = await lookupUSDA(name, amount, unit)
+    // Step 2 — clean the name for USDA: strip noise, preserve fat-ratio qualifiers
+    const cleanedName = cleanQueryName(name)
+
+    // Step 3 — USDA lookup with the cleaned name
+    const usda = await lookupUSDA(cleanedName, amount, unit)
     if (usda) return { ...usda, source: 'text' }
 
     // Fallback — LLaVA estimates nutrition directly

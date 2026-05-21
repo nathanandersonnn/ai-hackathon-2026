@@ -21,6 +21,28 @@ function getVal(nutrients, id) {
   return nutrients.find(n => n.nutrientId === id)?.value ?? 0
 }
 
+// Pick the USDA result whose description best matches the search query.
+// Scores by counting how many query tokens appear in the description;
+// ties preserve USDA's own relevance ranking (first result wins).
+function bestMatch(foods, query) {
+  if (foods.length <= 1) return foods[0]
+
+  const tokens = query.toLowerCase().split(/\W+/).filter(t => t.length > 2)
+  if (tokens.length === 0) return foods[0]
+
+  let best = foods[0]
+  let bestScore = -1
+  for (const food of foods) {
+    const desc = food.description.toLowerCase()
+    const score = tokens.reduce((n, t) => n + (desc.includes(t) ? 1 : 0), 0)
+    if (score > bestScore) {
+      bestScore = score
+      best = food
+    }
+  }
+  return best
+}
+
 // Slashes and other special chars break the USDA search query (e.g. "93/7" → empty results)
 function sanitizeQuery(name) {
   return name
@@ -58,7 +80,7 @@ export async function lookupUSDA(name, amount, unit) {
   let res
   try {
     res = await fetch(
-      `${BASE}/foods/search?query=${encodeURIComponent(query)}&api_key=${API_KEY}&pageSize=3&dataType=Foundation,SR%20Legacy,Branded`
+      `${BASE}/foods/search?query=${encodeURIComponent(query)}&api_key=${API_KEY}&pageSize=5&dataType=Foundation,SR%20Legacy,Branded`
     )
   } catch {
     return null
@@ -66,8 +88,9 @@ export async function lookupUSDA(name, amount, unit) {
   if (!res.ok) return null
 
   const data = await res.json()
-  const food = data.foods?.[0]
-  if (!food) return null
+  const foods = data.foods ?? []
+  if (foods.length === 0) return null
+  const food = bestMatch(foods, query)
 
   const n = food.foodNutrients || []
   return {
