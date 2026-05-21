@@ -69,7 +69,7 @@ app.post('/analyze-set', async (req, res) => {
       },
       body: JSON.stringify({
         model: GROQ_MODEL,
-        max_tokens: 512,
+        max_tokens: 768,
         temperature: 0.3,
         response_format: { type: 'json_object' },
         messages: [
@@ -118,7 +118,9 @@ Each entry in telemetry_summary contains:
 - minAngle: minimum primary joint angle reached during the rep, in degrees (knee for Squat/Lunge, elbow for Push-up, hip for Deadlift). Lower = deeper.
 - maxTorsoLean: maximum torso lean from vertical during the rep, in degrees (0° upright, 90° horizontal).
 
-Apply the deduction rubric from the system instructions and return JSON matching the required schema. Feedback strings should be punchy coaching cues under 8 words each, imperative voice.`
+Apply the deduction rubric from the system instructions and return JSON matching the required schema.
+
+Write descriptive feedback, not terse cues. Each feedback string is one full, specific sentence (roughly 12-25 words) that cites the actual measured numbers. A "warn" string names what was off, why it matters, and how to fix it, and should explain the issues behind the deductions you applied. A "good" string calls out what was done well and why it counts. Aim for 2-3 strings in each list (fewer only if the data genuinely does not support them).`
 }
 
 // json_object mode guarantees valid JSON but not the right shape. Groq returns
