@@ -262,7 +262,9 @@ export default function Calories() {
       <header className="page-header">
         <div>
           <h1 className="page-title">Calorie Tracker</h1>
-          <p className="page-subtitle">Log your food and understand your intake</p>
+          <p className="page-subtitle">
+            {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+          </p>
         </div>
         <button className="btn-ghost" style={{ fontSize: 12 }} onClick={exportJSON}>
           Export JSON
@@ -274,6 +276,7 @@ export default function Calories() {
         <button className="date-arrow" onClick={() => setSelectedDate(d => shiftDate(d, -1))}>‹</button>
         <div className="date-center">
           <label className="date-display">
+            {isToday && <span className="date-today-label">Today</span>}
             {formatDateLabel(selectedDate)}
             {!isToday && <span className="date-past-badge">Past</span>}
             <input
