@@ -22,10 +22,11 @@ const DESCRIPTION = `
 `
 
 // EDIT: Team members — add or remove objects as needed
+//       link: optional URL (LinkedIn, GitHub, portfolio, etc.) — leave as "" to show plain text
 const TEAM = [
-  { name: "Nathan Anderson",   role: "Frontend Development & UI",  bio: "I'm a third year Computer Science Major, with a strong passion for physical fitness." },
-  { name: "Aiden Rubey",   role: "AI Chat & Backend",          bio: "EDIT: Short bio here." },
-  { name: "George Leyva",   role: "UI, Frontend & Integration", bio: "EDIT: Short bio here." },
+  { name: "Nathan Anderson", link: "https://web.engr.oregonstate.edu/~andern26/nathan.html", role: "Frontend Development, UI, AI Coach & Supabase Backend", bio: "I'm a third year Computer Science Major, with a strong passion for physical fitness." },
+  { name: "Aiden Rubey",     link: "",                                    role: "AI Chat & Backend",                                   bio: "EDIT: Short bio here." },
+  { name: "George Leyva",    link: "",                                    role: "UI, Frontend & Integration",                          bio: "EDIT: Short bio here." },
 ]
 
 // EDIT: Any links you want to show (GitHub, demo, etc.) — set href to the real URL
@@ -66,7 +67,11 @@ export default function About() {
               <div key={i} className="team-card">
                 <div className="team-avatar">{member.name.charAt(0)}</div>
                 <div className="team-info">
-                  <div className="team-name">{member.name}</div>
+                  <div className="team-name">
+                    {member.link
+                      ? <a href={member.link} className="team-name-link" target="_blank" rel="noreferrer">{member.name}</a>
+                      : member.name}
+                  </div>
                   <div className="team-role">{member.role}</div>
                   <div className="team-bio">{member.bio}</div>
                 </div>
