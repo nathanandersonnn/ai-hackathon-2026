@@ -21,18 +21,22 @@ function authHeaders() {
  * @param {string} setData.exercise  - e.g. "Squat"
  * @param {number} setData.reps      - rep count
  * @param {Array}  setData.landmarks - MediaPipe pose landmark frames
+ * @param {object} [opts]
+ * @param {(stage: 'sent') => void} [opts.onStage] - fires when the request leaves the client
  *
  * @returns {Promise<{ formScore: number, feedback: { type: 'good'|'warn', text: string }[] }>}
  */
-export async function analyzeSet(setData) {
+export async function analyzeSet(setData, { onStage } = {}) {
   console.log('[analyzeSet] called with', { exercise: setData.exercise, reps: setData.reps, frames: setData.landmarks?.length })
   const body = JSON.stringify(setData)
   console.log('[analyzeSet] serialized body bytes:', body.length, '→ fetching', `${BASE_URL}/analyze-set`)
-  const response = await fetch(`${BASE_URL}/analyze-set`, {
+  const request = fetch(`${BASE_URL}/analyze-set`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body,
   })
+  onStage?.('sent')
+  const response = await request
   console.log('[analyzeSet] response received, status', response.status)
 
   if (!response.ok) throw new Error(`Form check API error: ${response.status}`)

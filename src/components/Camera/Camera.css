@@ -483,3 +483,104 @@
   color: var(--text-muted);
   margin-top: 4px;
 }
+
+/* Analyze progress tracker */
+.analyze-tracker {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.analyze-tracker-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.analyze-tracker-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.analyze-tracker-elapsed {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.analyze-bar-track {
+  height: 6px;
+  background: var(--bg-base);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.analyze-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--accent);
+  transition: width 0.2s linear;
+}
+
+.analyze-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  list-style: none;
+}
+
+.analyze-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+}
+
+.analyze-step-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  flex-shrink: 0;
+  font-weight: 700;
+}
+
+.analyze-step--done {
+  color: var(--text-secondary);
+}
+.analyze-step--done .analyze-step-icon {
+  color: var(--accent);
+}
+
+.analyze-step--active {
+  color: var(--text-primary);
+}
+.analyze-step--active .analyze-step-icon {
+  color: var(--accent);
+  animation: spin 1s linear infinite;
+}
+
+.analyze-step--pending {
+  color: var(--text-muted);
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.analyze-tracker-note {
+  font-size: 11.5px;
+  color: var(--orange);
+}

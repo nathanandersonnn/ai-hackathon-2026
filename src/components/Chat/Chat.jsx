@@ -84,7 +84,7 @@ export default function Chat({ user }) {
       <header className="page-header">
         <div>
           <h1 className="page-title">AI Coach</h1>
-          <p className="page-subtitle">Powered by Claude · Knows your history and goals</p>
+          <p className="page-subtitle">Powered by Groq · Knows your history and goals</p>
         </div>
         <div className="coach-status">
           <span className="status-dot" />

@@ -25,6 +25,12 @@ export default function Camera() {
   const countdownTimerRef = useRef(null)
   const analyzeAbortRef = useRef(null)
 
+  const [analyzeFrames, setAnalyzeFrames] = useState(0)
+  const [analyzeSent, setAnalyzeSent] = useState(false)
+  const [analyzeElapsed, setAnalyzeElapsed] = useState(0)
+  const analyzeTimerRef = useRef(null)
+  const analyzeStartRef = useRef(0)
+
   const videoRef = useRef(null)
   const canvasRef = useRef(null)
   const streamRef = useRef(null)
@@ -117,7 +123,10 @@ export default function Camera() {
   }, [active])
 
   useEffect(() => {
-    return () => stopStream()
+    return () => {
+      stopStream()
+      stopAnalyzeTimer()
+    }
   }, [])
 
   function startCountdown() {
@@ -163,6 +172,21 @@ export default function Camera() {
     }
   }
 
+  function startAnalyzeTimer() {
+    analyzeStartRef.current = Date.now()
+    if (analyzeTimerRef.current) clearInterval(analyzeTimerRef.current)
+    analyzeTimerRef.current = setInterval(() => {
+      setAnalyzeElapsed((Date.now() - analyzeStartRef.current) / 1000)
+    }, 100)
+  }
+
+  function stopAnalyzeTimer() {
+    if (analyzeTimerRef.current) {
+      clearInterval(analyzeTimerRef.current)
+      analyzeTimerRef.current = null
+    }
+  }
+
   async function toggleCamera() {
     if (active) {
       const capturedExercise = exercise
@@ -184,16 +208,28 @@ export default function Camera() {
       const abort = new AbortController()
       analyzeAbortRef.current = abort
 
+      setAnalyzeFrames(capturedLandmarks.length)
+      setAnalyzeSent(false)
+      setAnalyzeElapsed(0)
+      startAnalyzeTimer()
+
       setAnalyzing(true)
       setAnalyzeError(null)
       setFeedback([])
       setFormScore(null)
       try {
-        const result = await analyzeSet({
-          exercise: capturedExercise,
-          reps: capturedReps,
-          landmarks: capturedLandmarks,
-        })
+        const result = await analyzeSet(
+          {
+            exercise: capturedExercise,
+            reps: capturedReps,
+            landmarks: capturedLandmarks,
+          },
+          {
+            onStage: (stage) => {
+              if (stage === 'sent' && !abort.signal.aborted) setAnalyzeSent(true)
+            },
+          },
+        )
         if (abort.signal.aborted) return
         setFormScore(result.formScore)
         setFeedback(result.feedback ?? [])
@@ -205,6 +241,7 @@ export default function Camera() {
         if (analyzeAbortRef.current === abort) {
           analyzeAbortRef.current = null
           setAnalyzing(false)
+          stopAnalyzeTimer()
         }
       }
     } else {
@@ -213,10 +250,13 @@ export default function Camera() {
         analyzeAbortRef.current.abort()
         analyzeAbortRef.current = null
       }
+      stopAnalyzeTimer()
       landmarksRef.current = []
       setCameraError(null)
       setAnalyzeError(null)
       setAnalyzing(false)
+      setAnalyzeSent(false)
+      setAnalyzeElapsed(0)
       setRepCount(0)
       setLiveAngle(null)
       setAngleLabel('')
@@ -226,6 +266,8 @@ export default function Camera() {
       setActive(true)
     }
   }
+
+  const analyzeProgress = Math.min(0.96, 1 - Math.exp(-analyzeElapsed / 7))
 
   return (
     <div className="camera-view">
@@ -338,9 +380,42 @@ export default function Camera() {
           )}
 
           {analyzing && (
-            <div className="live-status">
-              <div className="pulse-dot" />
-              <span>Analyzing set with Claude…</span>
+            <div className="analyze-tracker">
+              <div className="analyze-tracker-head">
+                <span className="analyze-tracker-title">
+                  <span className="pulse-dot" />
+                  Analyzing your {exercise.toLowerCase()} set
+                </span>
+                <span className="analyze-tracker-elapsed">{Math.floor(analyzeElapsed)}s</span>
+              </div>
+
+              <div className="analyze-bar-track">
+                <div
+                  className="analyze-bar-fill"
+                  style={{ width: `${Math.round(analyzeProgress * 100)}%` }}
+                />
+              </div>
+
+              <ul className="analyze-steps">
+                <li className="analyze-step analyze-step--done">
+                  <span className="analyze-step-icon">✓</span>
+                  Captured {analyzeFrames} frames
+                </li>
+                <li className={`analyze-step ${analyzeSent ? 'analyze-step--done' : 'analyze-step--active'}`}>
+                  <span className="analyze-step-icon">{analyzeSent ? '✓' : '⟳'}</span>
+                  {analyzeSent ? 'Sent to coach' : 'Sending to coach…'}
+                </li>
+                <li className={`analyze-step ${analyzeSent ? 'analyze-step--active' : 'analyze-step--pending'}`}>
+                  <span className="analyze-step-icon">{analyzeSent ? '⟳' : '○'}</span>
+                  Groq analyzing your form
+                </li>
+              </ul>
+
+              {analyzeElapsed > 12 && (
+                <p className="analyze-tracker-note">
+                  Taking longer than usual — analysis times out at 20s.
+                </p>
+              )}
             </div>
           )}
 

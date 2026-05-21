@@ -1,12 +1,18 @@
 import express from 'express'
-import { query } from '@anthropic-ai/claude-agent-sdk'
 
 const PORT = process.env.PORT || 3001
 
-if (!process.env.CLAUDE_CODE_OAUTH_TOKEN) {
+// Groq — OpenAI-compatible API, free tier, no per-use billing, no SDK.
+// The key already lives in .env as VITE_GROQ_API_KEY (used by the chat
+// feature). GROQ_API_KEY (un-prefixed) is preferred and checked first.
+const GROQ_API_KEY = process.env.GROQ_API_KEY || process.env.VITE_GROQ_API_KEY
+const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions'
+const GROQ_MODEL = 'llama-3.3-70b-versatile'
+
+if (!GROQ_API_KEY) {
   console.warn(
-    '\n[server] CLAUDE_CODE_OAUTH_TOKEN is not set. ' +
-    'Run `claude setup-token` and add the value to .env before calling /analyze-set.\n'
+    '\n[server] GROQ_API_KEY / VITE_GROQ_API_KEY is not set. ' +
+    'Add it to .env before calling /analyze-set.\n'
   )
 }
 
@@ -14,7 +20,7 @@ const app = express()
 app.use(express.json({ limit: '8mb' }))
 
 app.get('/health', (_req, res) => {
-  res.json({ ok: true, hasToken: Boolean(process.env.CLAUDE_CODE_OAUTH_TOKEN) })
+  res.json({ ok: true, hasKey: Boolean(GROQ_API_KEY) })
 })
 
 app.post('/analyze-set', async (req, res) => {
@@ -26,45 +32,51 @@ app.post('/analyze-set', async (req, res) => {
   const t0 = Date.now()
   console.log(`[server] /analyze-set start exercise=${exercise} reps=${reps} frames=${landmarks.length}`)
 
-  const abortController = new AbortController()
-  const timeout = setTimeout(() => {
-    console.warn('[server] aborting Claude query after 45s')
-    abortController.abort()
-  }, 45000)
+  const abort = new AbortController()
+  const timeout = setTimeout(() => abort.abort(), 20000)
 
   try {
     const summary = summarizeSet(exercise, reps, landmarks)
     const prompt = buildPrompt(summary)
 
-    let assistantText = ''
-    for await (const msg of query({
-      prompt,
-      options: {
-        model: 'claude-sonnet-4-6',
-        maxTurns: 1,
-        allowedTools: [],
-        systemPrompt: 'You are a strength coach giving punchy cues. Every feedback item must be under 8 words, imperative voice, like a trainer yelling across the gym. Respond ONLY with valid JSON. No prose, no markdown fences.',
-        permissionMode: 'dontAsk',
-        abortController,
+    // Plain fetch to Groq's OpenAI-compatible endpoint — no SDK, free tier.
+    // json_object mode forces the response body to be valid JSON.
+    const response = await fetch(GROQ_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${GROQ_API_KEY}`,
       },
-    })) {
-      if (msg.type === 'assistant') {
-        for (const block of msg.message.content ?? []) {
-          if (block.type === 'text') assistantText += block.text
-        }
-      } else if (msg.type === 'result') {
-        console.log(`[server] result message after ${Date.now() - t0}ms`)
-      }
+      body: JSON.stringify({
+        model: GROQ_MODEL,
+        max_tokens: 512,
+        temperature: 0.3,
+        response_format: { type: 'json_object' },
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a strength coach giving punchy cues. Every feedback item is under 8 words, imperative voice, like a trainer yelling across the gym. Respond with valid JSON only.',
+          },
+          { role: 'user', content: prompt },
+        ],
+      }),
+      signal: abort.signal,
+    })
+
+    if (!response.ok) {
+      const detail = await response.text().catch(() => '')
+      throw new Error(`Groq API ${response.status}: ${detail.slice(0, 200)}`)
     }
 
-    console.log(`[server] Claude responded in ${Date.now() - t0}ms; text length=${assistantText.length}`)
-    if (!assistantText) throw new Error('Claude returned no text')
+    const data = await response.json()
+    const text = data.choices?.[0]?.message?.content
+    console.log(`[server] Groq responded in ${Date.now() - t0}ms`)
+    if (!text) throw new Error('Groq returned no content')
 
-    const parsed = parseFeedbackJson(assistantText)
-    res.json(parsed)
+    res.json(parseFeedback(text))
   } catch (err) {
     console.error('[server] /analyze-set failed:', err)
-    const message = abortController.signal.aborted ? 'Claude timed out (45s)' : (err.message || 'analyze-set failed')
+    const message = abort.signal.aborted ? 'Analysis timed out (20s)' : (err.message || 'analyze-set failed')
     res.status(500).json({ error: message })
   } finally {
     clearTimeout(timeout)
@@ -170,13 +182,24 @@ Rules:
 - Bad examples: "Your squat depth was good but could improve" (too long, hedged)`
 }
 
-function parseFeedbackJson(text) {
-  const trimmed = text.trim()
-  const match = trimmed.match(/\{[\s\S]*\}/)
-  if (!match) throw new Error(`Could not find JSON in model output: ${trimmed.slice(0, 200)}`)
-  const parsed = JSON.parse(match[0])
-  if (typeof parsed.formScore !== 'number' || !Array.isArray(parsed.feedback)) {
-    throw new Error('Model returned invalid shape')
+// json_object mode guarantees valid JSON but not the right shape — validate,
+// normalize the feedback `type`, and clamp the score to the 0-100 the UI expects.
+function parseFeedback(text) {
+  let parsed
+  try {
+    parsed = JSON.parse(text)
+  } catch {
+    const match = text.match(/\{[\s\S]*\}/)
+    if (!match) throw new Error('Model did not return JSON')
+    parsed = JSON.parse(match[0])
   }
-  return parsed
+  if (typeof parsed.formScore !== 'number' || !Array.isArray(parsed.feedback)) {
+    throw new Error('Model returned an unexpected shape')
+  }
+  return {
+    formScore: Math.max(0, Math.min(100, Math.round(parsed.formScore))),
+    feedback: parsed.feedback
+      .filter(f => f && typeof f.text === 'string')
+      .map(f => ({ type: f.type === 'good' ? 'good' : 'warn', text: f.text })),
+  }
 }
