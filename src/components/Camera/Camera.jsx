@@ -4,7 +4,7 @@ import { createTracker } from '../../lib/pose/exercises'
 import { analyzeSet } from '../../lib/api/formCheck'
 import './Camera.css'
 
-const EXERCISES = ['Squat', 'Push-up', 'Deadlift', 'Lunge']
+const EXERCISES = ['Squat', 'Push-up', 'Deadlift', 'Bicep Curl']
 
 export default function Camera() {
   const [active, setActive] = useState(false)
@@ -79,6 +79,9 @@ export default function Camera() {
         }
 
         landmarksRef.current = []
+        // Always create a fresh tracker so telemetryHistory and rep counts
+        // are guaranteed empty at the start of every session.
+        trackerRef.current?.reset?.()
         trackerRef.current = createTracker(exercise)
         trackingReadyRef.current = false
         setCameraStarting(false)
@@ -191,12 +194,12 @@ export default function Camera() {
     if (active) {
       const capturedExercise = exercise
       const capturedReps = repCount
-      const capturedLandmarks = landmarksRef.current.slice()
-      console.log(`[Camera] End Set: reps=${capturedReps} frames=${capturedLandmarks.length}`)
+      const capturedTelemetry = trackerRef.current?.getTelemetry?.() ?? []
+      console.log(`[Camera] End Set: reps=${capturedReps} telemetry=${capturedTelemetry.length}`)
       setActive(false)
 
-      if (capturedReps === 0 || capturedLandmarks.length === 0) {
-        console.log('[Camera] no reps/frames, skipping analyze-set')
+      if (capturedReps === 0 || capturedTelemetry.length === 0) {
+        console.log('[Camera] no reps/telemetry, skipping analyze-set')
         setFeedback([])
         setFormScore(null)
         return
@@ -208,7 +211,7 @@ export default function Camera() {
       const abort = new AbortController()
       analyzeAbortRef.current = abort
 
-      setAnalyzeFrames(capturedLandmarks.length)
+      setAnalyzeFrames(capturedTelemetry.length)
       setAnalyzeSent(false)
       setAnalyzeElapsed(0)
       startAnalyzeTimer()
@@ -222,7 +225,7 @@ export default function Camera() {
           {
             exercise: capturedExercise,
             reps: capturedReps,
-            landmarks: capturedLandmarks,
+            telemetry: capturedTelemetry,
           },
           {
             onStage: (stage) => {
@@ -399,7 +402,7 @@ export default function Camera() {
               <ul className="analyze-steps">
                 <li className="analyze-step analyze-step--done">
                   <span className="analyze-step-icon">✓</span>
-                  Captured {analyzeFrames} frames
+                  Captured telemetry for {analyzeFrames} rep{analyzeFrames === 1 ? '' : 's'}
                 </li>
                 <li className={`analyze-step ${analyzeSent ? 'analyze-step--done' : 'analyze-step--active'}`}>
                   <span className="analyze-step-icon">{analyzeSent ? '✓' : '⟳'}</span>

@@ -9,7 +9,7 @@
 //  backend so the API key is never exposed in the browser.
 // ─────────────────────────────────────────────
 
-const API_KEY  = import.meta.env.VITE_GROQ_API_KEY
+const API_KEY  = import.meta.env.VITE_GROQ_CHAT_KEY
 const BASE_URL = 'https://api.groq.com/openai/v1'
 const MODEL    = 'llama-3.3-70b-versatile'
 
