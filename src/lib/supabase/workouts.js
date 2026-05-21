@@ -51,6 +51,27 @@ export async function saveWorkoutSession({ label, exercises }) {
 }
 
 /**
+ * Update a saved session's label and/or exercises in place.
+ */
+export async function updateWorkoutSession(id, { label, exercises }) {
+  const userId = await currentUserId()
+  const patch = {}
+  if (label !== undefined)     patch.label     = label
+  if (exercises !== undefined) patch.exercises = exercises
+
+  const { data, error } = await supabase
+    .from(TABLE)
+    .update(patch)
+    .eq('id', id)
+    .eq('user_id', userId)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+/**
  * Delete a session by id.
  */
 export async function deleteWorkoutSession(id) {

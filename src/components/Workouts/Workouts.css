@@ -870,6 +870,83 @@
   gap: 12px;
 }
 
+/* ── 1RM stat tiles + chart inside the history modal ── */
+.one-rm-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.one-rm-stat {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.one-rm-label {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+}
+
+.one-rm-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.one-rm-value--best { color: var(--accent); }
+
+.one-rm-chart-wrap {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 12px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.one-rm-chart-title {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  padding-left: 4px;
+}
+
+/* ── Editable history card body ── */
+.history-body--edit {
+  background: var(--bg-base);
+  gap: 12px;
+}
+
+.history-body--edit .log-sets-header,
+.history-body--edit .log-set-row--edit {
+  grid-template-columns: 40px 1fr 1fr 28px;
+}
+
+/* Make exercise names in the history tab clickable */
+.history-ex-name.history-ex-name--clickable {
+  cursor: pointer;
+  transition: color 0.12s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.history-ex-name.history-ex-name--clickable:hover { color: var(--accent); }
+.history-ex-name-hint { font-size: 11px; opacity: 0.7; }
+
 /* ──────────────────────────────────────────────────────────────
    Mobile
    ────────────────────────────────────────────────────────────── */

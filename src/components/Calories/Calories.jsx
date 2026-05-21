@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useFoodScanner } from './useFoodScanner'
+import { getCalorieLogs, upsertCalorieLog } from '../../lib/supabase/calories'
 import './Calories.css'
 
 // ─── helpers ───────────────────────────────────────────────────
@@ -35,22 +36,7 @@ const ACTIVITY_MULTIPLIERS = [
 ]
 
 const DAILY_VALUES = { fiber: 28, sodium: 2300, sugar: 50 }
-const STORAGE_KEY = 'myfitbud_calories'
-const GOALS_KEY   = 'myfitbud_goals'
 const DEFAULT_GOALS = { cal: 2000, protein: 150, carbs: 250, fat: 65 }
-
-function loadStorage() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') } catch { return {} }
-}
-function saveStorage(data) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)) } catch {}
-}
-function loadGoals() {
-  try { return { ...DEFAULT_GOALS, ...JSON.parse(localStorage.getItem(GOALS_KEY) || '{}') } } catch { return { ...DEFAULT_GOALS } }
-}
-function persistGoals(g) {
-  try { localStorage.setItem(GOALS_KEY, JSON.stringify(g)) } catch {}
-}
 
 // ─── component ─────────────────────────────────────────────────
 export default function Calories() {
@@ -60,28 +46,30 @@ export default function Calories() {
   const [selectedDate, setSelectedDate] = useState(todayISO)
   const isToday = selectedDate === todayISO()
 
-  // ── per-date data ────────────────────────────────────────────
+  // ── per-date data (Supabase-backed) ──────────────────────────
+  const [allLogs, setAllLogs]   = useState([])
+  const [logsLoading, setLogsLoading] = useState(true)
   const [log, setLog]           = useState([])
   const [waterGlasses, setWater] = useState(0)
   const loadedFor = useRef(null)
 
-  // Load from localStorage whenever selectedDate changes
+  // Initial fetch — pull recent rows so we can seed goals + populate past days.
   useEffect(() => {
+    getCalorieLogs(60)
+      .then(setAllLogs)
+      .catch(err => console.error('Failed to load calorie logs:', err))
+      .finally(() => setLogsLoading(false))
+  }, [])
+
+  // Hydrate inputs whenever the selected date (or fetched logs) changes.
+  useEffect(() => {
+    if (logsLoading) return
     if (loadedFor.current === selectedDate) return
     loadedFor.current = selectedDate
-    const all = loadStorage()
-    const day = all[selectedDate] || {}
-    setLog(day.log || [])
-    setWater(day.water || 0)
-  }, [selectedDate])
-
-  // Persist whenever log or water changes, but only after load
-  useEffect(() => {
-    if (loadedFor.current !== selectedDate) return
-    const all = loadStorage()
-    all[selectedDate] = { log, water: waterGlasses }
-    saveStorage(all)
-  }, [log, waterGlasses, selectedDate])
+    const row = allLogs.find(r => r.date === selectedDate)
+    setLog(row?.food_entries?.log ?? [])
+    setWater(row?.food_entries?.water ?? 0)
+  }, [selectedDate, allLogs, logsLoading])
 
   // ── BMR / profile ────────────────────────────────────────────
   const [profile, setProfile] = useState({
@@ -91,9 +79,34 @@ export default function Calories() {
   const [tdee, setTdee] = useState(null)
 
   // ── goals ────────────────────────────────────────────────────
-  const [goals, setGoals]           = useState(loadGoals)
+  const [goals, setGoals]           = useState(DEFAULT_GOALS)
   const [showGoalEdit, setShowGoalEdit] = useState(false)
   const [goalDraft, setGoalDraft]   = useState(null)
+
+  // Seed goals from the most recent row that has them.
+  useEffect(() => {
+    if (logsLoading) return
+    const latest = allLogs.find(r => r.macro_goals)
+    if (latest) setGoals({ ...DEFAULT_GOALS, ...latest.macro_goals })
+  }, [allLogs, logsLoading])
+
+  // Persist the current day's row (food_entries + macro_goals snapshot).
+  // Callers pass explicit `next` values because state setters are async.
+  async function persistDay({ log: nextLog = log, water: nextWater = waterGlasses, goals: nextGoals = goals } = {}) {
+    try {
+      const saved = await upsertCalorieLog({
+        date: selectedDate,
+        food_entries: { log: nextLog, water: nextWater },
+        macro_goals:  nextGoals,
+      })
+      setAllLogs(prev => {
+        const filtered = prev.filter(r => r.date !== selectedDate)
+        return [saved, ...filtered].sort((a, b) => b.date.localeCompare(a.date))
+      })
+    } catch (err) {
+      console.error('Failed to save calorie log:', err)
+    }
+  }
 
   function openGoalEdit() {
     setGoalDraft({ ...goals })
@@ -112,14 +125,14 @@ export default function Calories() {
       fat:     parseInt(goalDraft.fat)     || DEFAULT_GOALS.fat,
     }
     setGoals(updated)
-    persistGoals(updated)
+    persistDay({ goals: updated })
     setShowGoalEdit(false)
   }
 
   function applyTDEEAsGoal(tdeeVal) {
     const updated = { ...goals, cal: tdeeVal }
     setGoals(updated)
-    persistGoals(updated)
+    persistDay({ goals: updated })
   }
 
   function handleProfileChange(field, val) {
@@ -148,7 +161,9 @@ export default function Calories() {
     setLogError(null)
     try {
       const result = await analyzeText(foodText)
-      setLog(prev => [...prev, { ...result, source: 'text' }])
+      const next = [...log, { ...result, source: 'text' }]
+      setLog(next)
+      persistDay({ log: next })
       setFoodText('')
     } catch (err) {
       setLogError(err.message)
@@ -178,7 +193,9 @@ export default function Calories() {
     setPhotoError(null)
     try {
       const result = await analyzeImage(URL.createObjectURL(photoFile))
-      setLog(prev => [...prev, { ...result, source: 'photo' }])
+      const next = [...log, { ...result, source: 'photo' }]
+      setLog(next)
+      persistDay({ log: next })
       setPhotoPreview(null)
       setPhotoFile(null)
       if (fileRef.current) fileRef.current.value = ''
@@ -203,7 +220,7 @@ export default function Calories() {
 
   function addQuickEntry() {
     if (!qa.cal) return
-    setLog(prev => [...prev, {
+    const next = [...log, {
       name:    qa.name || 'Quick entry',
       cal:     parseFloat(qa.cal) || 0,
       protein: parseFloat(qa.protein) || 0,
@@ -213,7 +230,9 @@ export default function Calories() {
       sodium:  parseFloat(qa.sodium) || 0,
       sugar:   parseFloat(qa.sugar) || 0,
       source: 'manual',
-    }])
+    }]
+    setLog(next)
+    persistDay({ log: next })
     setQA({ name: '', cal: '', protein: '', carbs: '', fat: '', fiber: '', sodium: '', sugar: '' })
     setShowQA(false)
     setShowMicros(false)
@@ -234,14 +253,15 @@ export default function Calories() {
   const calLeft = calGoal - totalCal
 
   // ── past dates ───────────────────────────────────────────────
-  const allDates = Object.entries(loadStorage())
-    .filter(([d]) => d !== selectedDate && d < todayISO())
-    .sort(([a], [b]) => b.localeCompare(a))
+  const pastRows = allLogs
+    .filter(r => r.date !== selectedDate && r.date < todayISO())
     .slice(0, 7)
 
   // ── export ───────────────────────────────────────────────────
   function exportJSON() {
-    const data = loadStorage()
+    const data = Object.fromEntries(
+      allLogs.map(r => [r.date, { log: r.food_entries?.log ?? [], water: r.food_entries?.water ?? 0 }])
+    )
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -253,7 +273,15 @@ export default function Calories() {
 
   // ── remove item ──────────────────────────────────────────────
   function removeItem(i) {
-    setLog(prev => prev.filter((_, idx) => idx !== i))
+    const next = log.filter((_, idx) => idx !== i)
+    setLog(next)
+    persistDay({ log: next })
+  }
+
+  function changeWater(delta) {
+    const next = Math.max(0, waterGlasses + delta)
+    setWater(next)
+    persistDay({ water: next })
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -379,7 +407,7 @@ export default function Calories() {
             <div className="summary-section">
               <p className="summary-section-label">Water</p>
               <div className="water-controls">
-                <button className="water-btn" onClick={() => setWater(w => Math.max(0, w - 1))}>−</button>
+                <button className="water-btn" onClick={() => changeWater(-1)}>−</button>
                 <span className="water-label">
                   {'💧'.repeat(Math.min(waterGlasses, 8))}
                   {waterGlasses === 0 && <span style={{ color: 'var(--text-muted)' }}>No water logged</span>}
@@ -387,7 +415,7 @@ export default function Calories() {
                     {waterGlasses} glass{waterGlasses !== 1 ? 'es' : ''}
                   </span>
                 </span>
-                <button className="water-btn" onClick={() => setWater(w => w + 1)}>+</button>
+                <button className="water-btn" onClick={() => changeWater(1)}>+</button>
               </div>
             </div>
           </div>
@@ -485,18 +513,18 @@ export default function Calories() {
           </div>
 
           {/* Past logs */}
-          {allDates.length > 0 && (
+          {pastRows.length > 0 && (
             <div className="cal-card">
               <h2 className="card-title">Past Days</h2>
               <div className="food-log-list">
-                {allDates.map(([date, day]) => {
-                  const cal = (day.log || []).reduce((s, f) => s + (f.cal || 0), 0)
+                {pastRows.map(row => {
+                  const cal = (row.food_entries?.log ?? []).reduce((s, f) => s + (f.cal || 0), 0)
                   return (
-                    <div key={date} className="past-day">
+                    <div key={row.date} className="past-day">
                       <div className="past-day-header">
-                        <span className="food-log-name">{formatDateLabel(date)}</span>
+                        <span className="food-log-name">{formatDateLabel(row.date)}</span>
                         <span className="food-log-cal">{cal} kcal</span>
-                        <button className="btn-ghost past-jump-btn" onClick={() => setSelectedDate(date)}>
+                        <button className="btn-ghost past-jump-btn" onClick={() => setSelectedDate(row.date)}>
                           Go →
                         </button>
                       </div>

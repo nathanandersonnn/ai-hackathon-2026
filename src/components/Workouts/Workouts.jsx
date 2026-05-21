@@ -1,7 +1,21 @@
 import { useState, useEffect, useRef } from 'react'
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { EXERCISE_LIBRARY, MUSCLE_GROUPS } from './exerciseLibrary'
-import { getWorkoutSessions, saveWorkoutSession, deleteWorkoutSession } from '../../lib/supabase/workouts'
+import { getWorkoutSessions, saveWorkoutSession, updateWorkoutSession, deleteWorkoutSession } from '../../lib/supabase/workouts'
 import './Workouts.css'
+
+// Epley 1RM estimate: weight × (1 + reps / 30). Returns 0 for unweighted/empty sets.
+function epley1RM(reps, weight) {
+  const r = Number(reps) || 0
+  const w = Number(weight) || 0
+  if (r <= 0 || w <= 0) return 0
+  return w * (1 + r / 30)
+}
+
+// Highest estimated 1RM across all sets of a single exercise instance.
+function sessionMax1RM(exercise) {
+  return Math.max(0, ...(exercise?.sets ?? []).map(s => epley1RM(s.reps, s.weight)))
+}
 
 // ── Suggested workout templates ──────────────────────────────
 const WORKOUT_TEMPLATES = [
@@ -146,6 +160,11 @@ export default function Workouts() {
   const [history, setHistory] = useState([])
   const [historyLoading, setHistoryLoading] = useState(true)
   const [expandedHistory, setExpandedHistory] = useState(null)
+  const [historyExerciseFocus, setHistoryExerciseFocus] = useState(null) // name of exercise to drill into from History tab
+  const [editingId, setEditingId] = useState(null)   // id of history row being edited inline
+  const [editDraft, setEditDraft] = useState(null)   // { label, exercises } draft for the edit
+  const [editPickerOpen, setEditPickerOpen] = useState(false)
+  const [editSaving, setEditSaving] = useState(false)
   const [session, setSession] = useState(null)       // active log session
 
   useEffect(() => {
@@ -168,6 +187,50 @@ export default function Workouts() {
   function startBlank() {
     setSession({ label: '', exercises: [emptyExercise()] })
     setTab('log')
+  }
+
+  function startEdit(entry) {
+    setEditingId(entry.id)
+    setEditDraft({
+      label: entry.label,
+      exercises: entry.exercises.map(ex => ({
+        name: ex.name,
+        sets: ex.sets.map(s => ({ reps: String(s.reps ?? ''), weight: String(s.weight ?? '') })),
+      })),
+    })
+    setExpandedHistory(entry.id)
+  }
+
+  function cancelEdit() {
+    setEditingId(null)
+    setEditDraft(null)
+    setEditPickerOpen(false)
+  }
+
+  async function saveEdit() {
+    if (!editDraft || editSaving) return
+    const cleaned = {
+      label: editDraft.label || 'Workout',
+      exercises: editDraft.exercises
+        .filter(ex => ex.name.trim())
+        .map(ex => ({
+          name: ex.name,
+          sets: ex.sets
+            .filter(s => s.reps)
+            .map(s => ({ reps: Number(s.reps) || 0, weight: Number(s.weight) || 0 })),
+        })),
+    }
+    setEditSaving(true)
+    try {
+      const updated = await updateWorkoutSession(editingId, cleaned)
+      setHistory(prev => prev.map(s => s.id === editingId ? updated : s))
+      cancelEdit()
+    } catch (err) {
+      console.error('Update workout failed:', err)
+      alert('Could not save changes — check console.')
+    } finally {
+      setEditSaving(false)
+    }
   }
 
   async function handleDeleteSession(id) {
@@ -301,6 +364,13 @@ export default function Workouts() {
                     Repeat
                   </button>
                   <button
+                    className="btn-ghost repeat-btn"
+                    onClick={e => { e.stopPropagation(); startEdit(entry) }}
+                    title="Edit this workout"
+                  >
+                    Edit
+                  </button>
+                  <button
                     className="history-delete-btn"
                     onClick={e => { e.stopPropagation(); handleDeleteSession(entry.id) }}
                     title="Delete this workout"
@@ -311,11 +381,26 @@ export default function Workouts() {
                 </div>
               </button>
 
-              {expandedHistory === entry.id && (
+              {expandedHistory === entry.id && editingId === entry.id && editDraft ? (
+                <HistoryEditBody
+                  draft={editDraft}
+                  onChange={setEditDraft}
+                  onSave={saveEdit}
+                  onCancel={cancelEdit}
+                  onOpenPicker={() => setEditPickerOpen(true)}
+                  saving={editSaving}
+                />
+              ) : expandedHistory === entry.id && (
                 <div className="history-body">
                   {entry.exercises.map((ex, ei) => (
                     <div key={ei} className="history-exercise">
-                      <p className="history-ex-name">{ex.name}</p>
+                      <p
+                        className="history-ex-name history-ex-name--clickable"
+                        onClick={() => setHistoryExerciseFocus(ex.name)}
+                        title="View progression chart and 1RM history"
+                      >
+                        {ex.name} <span className="history-ex-name-hint">📈</span>
+                      </p>
                       <div className="history-sets-table">
                         <div className="history-sets-header">
                           <span>Set</span><span>Reps</span><span>Weight</span>
@@ -335,6 +420,24 @@ export default function Workouts() {
             </div>
           ))}
         </div>
+      )}
+
+      {editPickerOpen && (
+        <ExercisePicker
+          onSelect={name => {
+            setEditDraft(d => ({ ...d, exercises: [...d.exercises, { name, sets: [emptySet()] }] }))
+            setEditPickerOpen(false)
+          }}
+          onClose={() => setEditPickerOpen(false)}
+        />
+      )}
+
+      {historyExerciseFocus && (
+        <ExerciseHistoryModal
+          exerciseName={historyExerciseFocus}
+          history={history}
+          onClose={() => setHistoryExerciseFocus(null)}
+        />
       )}
 
       {/* ── LOG SESSION ── */}
@@ -381,6 +484,120 @@ function playBeep() {
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5)
     osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.5)
   } catch (e) { console.warn('Beep failed:', e) }
+}
+
+// ── Editable body for a history card (in-place edit) ─────────
+function HistoryEditBody({ draft, onChange, onSave, onCancel, onOpenPicker, saving }) {
+  function updateLabel(val) {
+    onChange(d => ({ ...d, label: val }))
+  }
+  function updateExerciseName(ei, val) {
+    onChange(d => {
+      const exercises = [...d.exercises]
+      exercises[ei] = { ...exercises[ei], name: val }
+      return { ...d, exercises }
+    })
+  }
+  function updateSet(ei, si, field, val) {
+    onChange(d => {
+      const exercises = [...d.exercises]
+      const sets = [...exercises[ei].sets]
+      sets[si] = { ...sets[si], [field]: val }
+      exercises[ei] = { ...exercises[ei], sets }
+      return { ...d, exercises }
+    })
+  }
+  function addSet(ei) {
+    onChange(d => {
+      const exercises = [...d.exercises]
+      exercises[ei] = { ...exercises[ei], sets: [...exercises[ei].sets, emptySet()] }
+      return { ...d, exercises }
+    })
+  }
+  function removeSet(ei, si) {
+    onChange(d => {
+      const exercises = [...d.exercises]
+      const sets = exercises[ei].sets.filter((_, i) => i !== si)
+      exercises[ei] = { ...exercises[ei], sets }
+      return { ...d, exercises }
+    })
+  }
+  function removeExercise(ei) {
+    onChange(d => ({ ...d, exercises: d.exercises.filter((_, i) => i !== ei) }))
+  }
+
+  return (
+    <div className="history-body history-body--edit">
+      <input
+        className="log-title-input"
+        placeholder="Workout name"
+        value={draft.label}
+        onChange={e => updateLabel(e.target.value)}
+      />
+
+      <div className="log-exercises">
+        {draft.exercises.map((ex, ei) => (
+          <div key={ei} className="log-exercise-card">
+            <div className="log-ex-header">
+              <input
+                className="log-ex-name-input"
+                placeholder="Exercise name"
+                value={ex.name}
+                onChange={e => updateExerciseName(ei, e.target.value)}
+              />
+              {draft.exercises.length > 1 && (
+                <button className="remove-ex-btn" onClick={() => removeExercise(ei)}>Remove</button>
+              )}
+            </div>
+
+            <div className="log-sets-table">
+              <div className="log-sets-header">
+                <span>Set</span>
+                <span>Reps</span>
+                <span>Weight (lbs)</span>
+                <span />
+              </div>
+              {ex.sets.map((s, si) => (
+                <div key={si} className="log-set-row log-set-row--edit">
+                  <span className="log-set-num">{si + 1}</span>
+                  <input
+                    className="log-set-input"
+                    type="number"
+                    placeholder="—"
+                    value={s.reps}
+                    onChange={e => updateSet(ei, si, 'reps', e.target.value)}
+                  />
+                  <input
+                    className="log-set-input"
+                    type="number"
+                    placeholder="—"
+                    value={s.weight}
+                    onChange={e => updateSet(ei, si, 'weight', e.target.value)}
+                  />
+                  <button
+                    className="remove-set-btn"
+                    onClick={() => removeSet(ei, si)}
+                    disabled={ex.sets.length === 1}
+                  >×</button>
+                </div>
+              ))}
+            </div>
+
+            <button className="add-set-btn" onClick={() => addSet(ei)}>+ Add Set</button>
+          </div>
+        ))}
+      </div>
+
+      <button className="add-exercise-btn" onClick={onOpenPicker}>+ Add Exercise</button>
+
+      <div className="log-session-actions">
+        <button className="btn-ghost" onClick={onCancel} disabled={saving}>Cancel</button>
+        <button className="btn-accent" onClick={onSave} disabled={saving}>
+          {saving ? 'Saving…' : 'Save Changes'}
+        </button>
+      </div>
+    </div>
+  )
 }
 
 // ── Log Session sub-component ────────────────────────────────
@@ -725,12 +942,25 @@ function ExercisePicker({ onSelect, onClose }) {
 // ── Exercise History modal ───────────────────────────────────
 function ExerciseHistoryModal({ exerciseName, history, onClose }) {
   const name = exerciseName.toLowerCase().trim()
+  // newest-first, matches how `history` arrives from Supabase
   const entries = history
     .map(s => {
       const exercise = s.exercises?.find(e => e.name.toLowerCase().trim() === name)
       return exercise ? { id: s.id, label: s.label, date: s.date, exercise } : null
     })
     .filter(Boolean)
+
+  // Epley-based stats. Only sessions with a non-zero 1RM contribute.
+  const weightedEntries = entries.filter(e => sessionMax1RM(e.exercise) > 0)
+  const currentOneRM = weightedEntries[0] ? sessionMax1RM(weightedEntries[0].exercise) : 0
+  const bestOneRM    = Math.max(0, ...weightedEntries.map(e => sessionMax1RM(e.exercise)))
+
+  // Chart data is oldest → newest for a left-to-right time axis.
+  const chartData = [...weightedEntries].reverse().map(e => ({
+    date: e.date,
+    label: formatHistoryDate(e.date),
+    oneRM: Math.round(sessionMax1RM(e.exercise)),
+  }))
 
   return (
     <div className="picker-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
@@ -744,32 +974,88 @@ function ExerciseHistoryModal({ exerciseName, history, onClose }) {
           {entries.length === 0 ? (
             <p className="picker-empty">No previous sessions logged for "{exerciseName}".</p>
           ) : (
-            entries.map(entry => {
-              const maxWeight = Math.max(0, ...entry.exercise.sets.map(s => Number(s.weight) || 0))
-              return (
-                <div key={entry.id} className="ex-history-entry">
-                  <div className="ex-history-entry-header">
-                    <span className="history-label">{entry.label}</span>
-                    <span className="history-meta">
-                      {formatHistoryDate(entry.date)}
-                      {maxWeight > 0 ? ` · top ${maxWeight} lbs` : ''}
-                    </span>
+            <>
+              {weightedEntries.length > 0 && (
+                <div className="one-rm-stats">
+                  <div className="one-rm-stat">
+                    <span className="one-rm-label">Current 1RM</span>
+                    <span className="one-rm-value">{Math.round(currentOneRM)} lbs</span>
                   </div>
-                  <div className="history-sets-table">
-                    <div className="history-sets-header">
-                      <span>Set</span><span>Reps</span><span>Weight</span>
-                    </div>
-                    {entry.exercise.sets.map((s, si) => (
-                      <div key={si} className="history-set-row">
-                        <span className="set-num">{si + 1}</span>
-                        <span>{s.reps} reps</span>
-                        <span>{s.weight ? `${s.weight} lbs` : '—'}</span>
-                      </div>
-                    ))}
+                  <div className="one-rm-stat">
+                    <span className="one-rm-label">Best Ever</span>
+                    <span className="one-rm-value one-rm-value--best">{Math.round(bestOneRM)} lbs</span>
                   </div>
                 </div>
-              )
-            })
+              )}
+
+              {chartData.length >= 2 && (
+                <div className="one-rm-chart-wrap">
+                  <p className="one-rm-chart-title">Estimated 1RM over time</p>
+                  <ResponsiveContainer width="100%" height={180}>
+                    <LineChart data={chartData} margin={{ top: 8, right: 12, left: -8, bottom: 0 }}>
+                      <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
+                      <XAxis
+                        dataKey="label"
+                        tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+                        axisLine={{ stroke: 'var(--border)' }}
+                        tickLine={false}
+                      />
+                      <YAxis
+                        tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+                        axisLine={{ stroke: 'var(--border)' }}
+                        tickLine={false}
+                        width={36}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          background: 'var(--bg-surface)',
+                          border: '1px solid var(--border-light)',
+                          borderRadius: 8,
+                          fontSize: 12,
+                        }}
+                        labelStyle={{ color: 'var(--text-muted)' }}
+                        formatter={(value) => [`${value} lbs`, '1RM']}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="oneRM"
+                        stroke="var(--accent)"
+                        strokeWidth={2}
+                        dot={{ fill: 'var(--accent)', r: 3 }}
+                        activeDot={{ r: 5 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+
+              {entries.map(entry => {
+                const oneRM = sessionMax1RM(entry.exercise)
+                return (
+                  <div key={entry.id} className="ex-history-entry">
+                    <div className="ex-history-entry-header">
+                      <span className="history-label">{entry.label}</span>
+                      <span className="history-meta">
+                        {formatHistoryDate(entry.date)}
+                        {oneRM > 0 ? ` · est. 1RM ${Math.round(oneRM)} lbs` : ''}
+                      </span>
+                    </div>
+                    <div className="history-sets-table">
+                      <div className="history-sets-header">
+                        <span>Set</span><span>Reps</span><span>Weight</span>
+                      </div>
+                      {entry.exercise.sets.map((s, si) => (
+                        <div key={si} className="history-set-row">
+                          <span className="set-num">{si + 1}</span>
+                          <span>{s.reps} reps</span>
+                          <span>{s.weight ? `${s.weight} lbs` : '—'}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })}
+            </>
           )}
         </div>
       </div>
