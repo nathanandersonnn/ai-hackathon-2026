@@ -51,6 +51,7 @@ export default function App() {
   const viewProps =
     activeView === 'auth' ? { onSignedIn: handleSignedIn } :
     activeView === 'chat' ? { user } :
+    activeView === 'dashboard' ? { user, onSignOut: handleSignOut, onNavigate: setActiveView } :
     {}
 
   return (

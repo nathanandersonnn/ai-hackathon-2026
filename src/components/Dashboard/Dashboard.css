@@ -257,6 +257,38 @@
   opacity: 0.88;
 }
 
+/* Mobile-only sign-in/out CTA at the bottom of Dashboard.
+   Hidden on desktop (sign-in/out lives in the sidebar there). */
+.dashboard-mobile-auth {
+  display: none;
+}
+
+.dashboard-auth-btn {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--font-display);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  transition: all 0.15s;
+  cursor: pointer;
+}
+
+.dashboard-auth-btn--signin {
+  background: var(--accent);
+  color: var(--bg-base);
+  border-color: var(--accent);
+}
+.dashboard-auth-btn--signin:hover { opacity: 0.88; }
+
+.dashboard-auth-btn--signout:hover {
+  border-color: rgba(248, 113, 113, 0.4);
+  color: var(--red);
+}
+
 /* ──────────────────────────────────────────────────────────────
    Mobile
    ────────────────────────────────────────────────────────────── */
@@ -294,5 +326,10 @@
 
   .card {
     padding: 18px;
+  }
+
+  .dashboard-mobile-auth {
+    display: block;
+    margin-top: 12px;
   }
 }

@@ -55,7 +55,7 @@ function buildWeeklyData(logs, sessions) {
   })
 }
 
-export default function Dashboard() {
+export default function Dashboard({ user, onSignOut, onNavigate }) {
   const [logs, setLogs]         = useState([])
   const [sessions, setSessions] = useState([])
   const [loading, setLoading]   = useState(true)
@@ -162,6 +162,19 @@ export default function Dashboard() {
           </div>
           <button className="btn-accent">Open Chat</button>
         </div>
+      </div>
+
+      {/* Mobile-only auth CTA, sized to match the cards above */}
+      <div className="dashboard-mobile-auth">
+        {user ? (
+          <button className="dashboard-auth-btn dashboard-auth-btn--signout" onClick={onSignOut}>
+            Sign out
+          </button>
+        ) : (
+          <button className="dashboard-auth-btn dashboard-auth-btn--signin" onClick={() => onNavigate?.('auth')}>
+            Sign in
+          </button>
+        )}
       </div>
     </div>
   )
