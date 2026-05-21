@@ -3,6 +3,310 @@
   max-width: 1060px;
 }
 
+.card-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0;
+}
+
+/* Summary section header (label + edit button row) */
+.summary-section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.summary-section-header .summary-section-label {
+  flex: 1;
+  margin: 0;
+}
+
+.goal-edit-btn {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-glow);
+  color: var(--accent);
+  border: 1px solid rgba(163, 230, 53, 0.2);
+  cursor: pointer;
+  transition: all 0.12s;
+  white-space: nowrap;
+}
+.goal-edit-btn:hover { background: rgba(163, 230, 53, 0.25); }
+
+.goal-cancel-btn {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: color 0.12s;
+  white-space: nowrap;
+}
+.goal-cancel-btn:hover { color: var(--text-secondary); }
+
+/* Goal edit grid */
+.goal-edit-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.goal-edit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.error-msg {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--red);
+  background: rgba(248, 113, 113, 0.1);
+  border: 1px solid rgba(248, 113, 113, 0.2);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+}
+
+/* Date navigation */
+.date-nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+}
+
+.date-arrow {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  font-size: 20px;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.12s;
+}
+
+.date-arrow:hover { border-color: var(--accent); color: var(--accent); }
+
+.date-center {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+
+.date-display {
+  position: relative;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  transition: background 0.12s;
+}
+
+.date-display:hover { background: var(--bg-elevated); }
+
+/* Hide the native date input visually but keep it accessible/clickable */
+.date-input-hidden {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+}
+
+.date-past-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 10px;
+  background: rgba(251, 146, 60, 0.15);
+  color: var(--orange);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.date-today-btn {
+  font-size: 12px;
+  padding: 6px 14px;
+  flex-shrink: 0;
+}
+
+/* Summary sections */
+.summary-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.summary-section:first-of-type { border-top: none; padding-top: 0; }
+
+.summary-section-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin: 0;
+}
+
+.cal-remaining {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* Macro bars */
+.macro-bars { display: flex; flex-direction: column; gap: 8px; }
+
+.macro-bar-row { display: flex; flex-direction: column; gap: 4px; }
+
+.macro-bar-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.macro-bar-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  width: 52px;
+  flex-shrink: 0;
+}
+
+.macro-bar-value {
+  font-size: 12px;
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
+}
+
+.macro-bar-pct {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.macro-bar-track {
+  height: 6px;
+  background: var(--bg-base);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.macro-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s ease;
+  min-width: 2px;
+}
+
+.macro-bar-fill--blue   { background: var(--blue); }
+.macro-bar-fill--orange { background: var(--orange); }
+.macro-bar-fill--purple { background: var(--purple); }
+
+/* Micro grid */
+.micro-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.micro-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+}
+
+.micro-cell-val {
+  font-size: 15px;
+  font-weight: 700;
+  font-family: var(--font-display);
+  color: var(--text-primary);
+}
+
+.micro-unit {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--text-muted);
+  margin-left: 1px;
+}
+
+.micro-cell-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.micro-cell-rdv {
+  font-size: 10px;
+  color: var(--accent);
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+/* Water controls */
+.water-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+.water-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.12s;
+  flex-shrink: 0;
+}
+
+.water-btn:hover { border-color: var(--blue); color: var(--blue); }
+.water-btn--add:hover { border-color: var(--accent); color: var(--accent); }
+
+.water-label {
+  flex: 1;
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
 .calories-layout {
   display: grid;
   grid-template-columns: 380px 1fr;
@@ -322,6 +626,17 @@
   justify-content: flex-end;
 }
 
+.scan-error {
+  font-size: 12.5px;
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.08);
+  border: 1px solid rgba(248, 113, 113, 0.25);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
 /* Food log table */
 .food-log-list {
   display: flex;
@@ -371,6 +686,38 @@
 
 .source-tag { font-size: 13px; flex-shrink: 0; }
 
+.food-log-name-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.confidence-tag {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: rgba(163, 230, 53, 0.12);
+  color: var(--accent);
+  letter-spacing: 0.2px;
+}
+
+.confidence-tag--low {
+  background: rgba(251, 146, 60, 0.12);
+  color: var(--orange);
+}
+
+.estimated-tag {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 500;
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: rgba(148, 163, 184, 0.12);
+  color: var(--text-muted);
+}
+
 .food-log-cal  { color: var(--accent); font-weight: 600; font-family: var(--font-display); }
 .food-log-macro { color: var(--text-muted); font-size: 12px; }
 
@@ -385,3 +732,163 @@
 }
 
 .remove-btn:hover { color: var(--red); background: rgba(248,113,113,0.1); }
+
+/* Quick Add */
+.qa-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.qa-micro-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+}
+
+.qa-micros-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: color 0.15s;
+  width: fit-content;
+}
+
+.qa-micros-toggle:hover { color: var(--text-primary); }
+
+/* Micronutrient summary row */
+.micro-row {
+  display: flex;
+  gap: 10px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+}
+
+.micro-stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.micro-val {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.micro-unit {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--text-muted);
+  margin-left: 1px;
+}
+
+.micro-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+/* Past Logs */
+.past-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.past-day {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.past-day-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--bg-elevated);
+}
+
+.past-day-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  padding: 2px 0;
+}
+
+.past-jump-btn {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  background: none;
+  border: 1px solid rgba(163,230,53,0.3);
+  border-radius: 4px;
+  padding: 3px 8px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.12s;
+}
+
+.past-jump-btn:hover { background: var(--accent-glow); }
+
+.past-day-date {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.past-day-cal {
+  font-size: 12px;
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.past-day-arrow {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.past-day-entries {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--border);
+}
+
+.past-entry-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12.5px;
+}
+
+.past-entry-row:last-child { border-bottom: none; }
+
+.past-entry-name {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.past-entry-macros {
+  color: var(--text-muted);
+  font-size: 11.5px;
+}

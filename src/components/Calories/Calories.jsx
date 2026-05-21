@@ -1,8 +1,25 @@
-import { useState, useRef } from 'react'
-import { lookupFoodText, analyzeFoodPhoto } from '../../lib/api/calories'
+import { useState, useEffect, useRef } from 'react'
+import { useFoodScanner } from './useFoodScanner'
 import './Calories.css'
 
-// Mifflin-St Jeor BMR
+// ─── helpers ───────────────────────────────────────────────────
+function todayISO() {
+  return new Date().toISOString().slice(0, 10)
+}
+
+function formatDateLabel(iso) {
+  const [y, m, d] = iso.split('-').map(Number)
+  const date = new Date(y, m - 1, d)
+  return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+}
+
+function shiftDate(iso, days) {
+  const [y, m, d] = iso.split('-').map(Number)
+  const date = new Date(y, m - 1, d)
+  date.setDate(date.getDate() + days)
+  return date.toISOString().slice(0, 10)
+}
+
 function calcBMR({ weightLbs, heightFt, heightIn, age, sex }) {
   const kg = weightLbs * 0.453592
   const cm = (heightFt * 12 + heightIn) * 2.54
@@ -17,22 +34,93 @@ const ACTIVITY_MULTIPLIERS = [
   { label: 'Very active (6–7 days/week)',        value: 1.725 },
 ]
 
+const DAILY_VALUES = { fiber: 28, sodium: 2300, sugar: 50 }
+const STORAGE_KEY = 'myfitbud_calories'
+const GOALS_KEY   = 'myfitbud_goals'
+const DEFAULT_GOALS = { cal: 2000, protein: 150, carbs: 250, fat: 65 }
 
+function loadStorage() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') } catch { return {} }
+}
+function saveStorage(data) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)) } catch {}
+}
+function loadGoals() {
+  try { return { ...DEFAULT_GOALS, ...JSON.parse(localStorage.getItem(GOALS_KEY) || '{}') } } catch { return { ...DEFAULT_GOALS } }
+}
+function persistGoals(g) {
+  try { localStorage.setItem(GOALS_KEY, JSON.stringify(g)) } catch {}
+}
+
+// ─── component ─────────────────────────────────────────────────
 export default function Calories() {
-  // Profile / BMR state
-  const [profile, setProfile] = useState({ weightLbs: '', heightFt: '', heightIn: '', age: '', sex: 'male', activity: 1.55 })
-  const [bmr, setBmr] = useState(null)
-  const [tdee, setTdee] = useState(null)
-  const [profileSaved, setProfileSaved] = useState(false)
+  const { analyzeImage, analyzeText } = useFoodScanner()
 
-  // Food log state
-  const [foodText, setFoodText] = useState('')
-  const [photoPreview, setPhotoPreview] = useState(null)
-  const [photoFile, setPhotoFile] = useState(null)
-  const [log, setLog] = useState([])
-  const [logLoading, setLogLoading] = useState(false)
-  const [photoLoading, setPhotoLoading] = useState(false)
-  const fileRef = useRef(null)
+  // ── date state ──────────────────────────────────────────────
+  const [selectedDate, setSelectedDate] = useState(todayISO)
+  const isToday = selectedDate === todayISO()
+
+  // ── per-date data ────────────────────────────────────────────
+  const [log, setLog]           = useState([])
+  const [waterGlasses, setWater] = useState(0)
+  const loadedFor = useRef(null)
+
+  // Load from localStorage whenever selectedDate changes
+  useEffect(() => {
+    if (loadedFor.current === selectedDate) return
+    loadedFor.current = selectedDate
+    const all = loadStorage()
+    const day = all[selectedDate] || {}
+    setLog(day.log || [])
+    setWater(day.water || 0)
+  }, [selectedDate])
+
+  // Persist whenever log or water changes, but only after load
+  useEffect(() => {
+    if (loadedFor.current !== selectedDate) return
+    const all = loadStorage()
+    all[selectedDate] = { log, water: waterGlasses }
+    saveStorage(all)
+  }, [log, waterGlasses, selectedDate])
+
+  // ── BMR / profile ────────────────────────────────────────────
+  const [profile, setProfile] = useState({
+    weightLbs: '', heightFt: '', heightIn: '', age: '', sex: 'male', activity: 1.55,
+  })
+  const [bmr, setBmr]   = useState(null)
+  const [tdee, setTdee] = useState(null)
+
+  // ── goals ────────────────────────────────────────────────────
+  const [goals, setGoals]           = useState(loadGoals)
+  const [showGoalEdit, setShowGoalEdit] = useState(false)
+  const [goalDraft, setGoalDraft]   = useState(null)
+
+  function openGoalEdit() {
+    setGoalDraft({ ...goals })
+    setShowGoalEdit(true)
+  }
+
+  function handleGoalDraft(field, val) {
+    setGoalDraft(d => ({ ...d, [field]: val }))
+  }
+
+  function saveGoalEdit() {
+    const updated = {
+      cal:     parseInt(goalDraft.cal)     || DEFAULT_GOALS.cal,
+      protein: parseInt(goalDraft.protein) || DEFAULT_GOALS.protein,
+      carbs:   parseInt(goalDraft.carbs)   || DEFAULT_GOALS.carbs,
+      fat:     parseInt(goalDraft.fat)     || DEFAULT_GOALS.fat,
+    }
+    setGoals(updated)
+    persistGoals(updated)
+    setShowGoalEdit(false)
+  }
+
+  function applyTDEEAsGoal(tdeeVal) {
+    const updated = { ...goals, cal: tdeeVal }
+    setGoals(updated)
+    persistGoals(updated)
+  }
 
   function handleProfileChange(field, val) {
     setProfile(p => ({ ...p, [field]: val }))
@@ -47,57 +135,128 @@ export default function Calories() {
     const b = calcBMR({ weightLbs: w, heightFt: ft, heightIn: inches, age: a, sex: profile.sex })
     setBmr(b)
     setTdee(Math.round(b * profile.activity))
-    setProfileSaved(true)
   }
+
+  // ── text entry ───────────────────────────────────────────────
+  const [foodText, setFoodText]       = useState('')
+  const [logLoading, setLogLoading]   = useState(false)
+  const [logError, setLogError]       = useState(null)
 
   async function addFoodText() {
     if (!foodText.trim()) return
     setLogLoading(true)
+    setLogError(null)
     try {
-      const result = await lookupFoodText(foodText)
+      const result = await analyzeText(foodText)
       setLog(prev => [...prev, { ...result, source: 'text' }])
       setFoodText('')
     } catch (err) {
-      console.error('Food lookup failed:', err)
+      setLogError(err.message)
     } finally {
       setLogLoading(false)
     }
   }
+
+  // ── photo entry ──────────────────────────────────────────────
+  const [photoPreview, setPhotoPreview] = useState(null)
+  const [photoFile, setPhotoFile]       = useState(null)
+  const [photoLoading, setPhotoLoading] = useState(false)
+  const [photoError, setPhotoError]     = useState(null)
+  const fileRef = useRef(null)
 
   function handlePhotoChange(e) {
     const file = e.target.files[0]
     if (!file) return
     setPhotoFile(file)
     setPhotoPreview(URL.createObjectURL(file))
+    setPhotoError(null)
   }
 
   async function analyzePhoto() {
     if (!photoFile) return
     setPhotoLoading(true)
+    setPhotoError(null)
     try {
-      const result = await analyzeFoodPhoto(photoFile)
+      const result = await analyzeImage(URL.createObjectURL(photoFile))
       setLog(prev => [...prev, { ...result, source: 'photo' }])
       setPhotoPreview(null)
       setPhotoFile(null)
       if (fileRef.current) fileRef.current.value = ''
     } catch (err) {
-      console.error('Photo analysis failed:', err)
+      setPhotoError(err.message)
     } finally {
       setPhotoLoading(false)
     }
   }
 
+  // ── quick add ────────────────────────────────────────────────
+  const [showQA, setShowQA]         = useState(false)
+  const [showMicros, setShowMicros] = useState(false)
+  const [qa, setQA] = useState({
+    name: '', cal: '', protein: '', carbs: '', fat: '',
+    fiber: '', sodium: '', sugar: '',
+  })
+
+  function handleQA(field, val) {
+    setQA(q => ({ ...q, [field]: val }))
+  }
+
+  function addQuickEntry() {
+    if (!qa.cal) return
+    setLog(prev => [...prev, {
+      name:    qa.name || 'Quick entry',
+      cal:     parseFloat(qa.cal) || 0,
+      protein: parseFloat(qa.protein) || 0,
+      carbs:   parseFloat(qa.carbs) || 0,
+      fat:     parseFloat(qa.fat) || 0,
+      fiber:   parseFloat(qa.fiber) || 0,
+      sodium:  parseFloat(qa.sodium) || 0,
+      sugar:   parseFloat(qa.sugar) || 0,
+      source: 'manual',
+    }])
+    setQA({ name: '', cal: '', protein: '', carbs: '', fat: '', fiber: '', sodium: '', sugar: '' })
+    setShowQA(false)
+    setShowMicros(false)
+  }
+
+  // ── totals ───────────────────────────────────────────────────
+  const totalCal     = log.reduce((s, f) => s + (f.cal || 0), 0)
+  const totalProtein = log.reduce((s, f) => s + (f.protein || 0), 0)
+  const totalCarbs   = log.reduce((s, f) => s + (f.carbs || 0), 0)
+  const totalFat     = log.reduce((s, f) => s + (f.fat || 0), 0)
+  const totalFiber   = log.reduce((s, f) => s + (f.fiber || 0), 0)
+  const totalSodium  = log.reduce((s, f) => s + (f.sodium || 0), 0)
+  const totalSugar   = log.reduce((s, f) => s + (f.sugar || 0), 0)
+  const netCarbs     = Math.max(0, totalCarbs - totalFiber)
+
+  const calGoal = goals.cal
+  const calPct  = Math.min((totalCal / calGoal) * 100, 100)
+  const calLeft = calGoal - totalCal
+
+  // ── past dates ───────────────────────────────────────────────
+  const allDates = Object.entries(loadStorage())
+    .filter(([d]) => d !== selectedDate && d < todayISO())
+    .sort(([a], [b]) => b.localeCompare(a))
+    .slice(0, 7)
+
+  // ── export ───────────────────────────────────────────────────
+  function exportJSON() {
+    const data = loadStorage()
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'myfitbud-calories.json'
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  // ── remove item ──────────────────────────────────────────────
   function removeItem(i) {
     setLog(prev => prev.filter((_, idx) => idx !== i))
   }
 
-  const totalCal     = log.reduce((s, f) => s + f.cal, 0)
-  const totalProtein = log.reduce((s, f) => s + f.protein, 0)
-  const totalCarbs   = log.reduce((s, f) => s + f.carbs, 0)
-  const totalFat     = log.reduce((s, f) => s + f.fat, 0)
-  const calGoal      = tdee ?? 2000
-  const calPct       = Math.min((totalCal / calGoal) * 100, 100)
-
+  // ─────────────────────────────────────────────────────────────
   return (
     <div className="calories-view">
       <header className="page-header">
@@ -105,16 +264,135 @@ export default function Calories() {
           <h1 className="page-title">Calorie Tracker</h1>
           <p className="page-subtitle">Log your food and understand your intake</p>
         </div>
+        <button className="btn-ghost" style={{ fontSize: 12 }} onClick={exportJSON}>
+          Export JSON
+        </button>
       </header>
 
+      {/* Date navigation */}
+      <div className="date-nav">
+        <button className="date-arrow" onClick={() => setSelectedDate(d => shiftDate(d, -1))}>‹</button>
+        <div className="date-center">
+          <label className="date-display">
+            {formatDateLabel(selectedDate)}
+            {!isToday && <span className="date-past-badge">Past</span>}
+            <input
+              type="date"
+              className="date-input-hidden"
+              value={selectedDate}
+              max={todayISO()}
+              onChange={e => e.target.value && setSelectedDate(e.target.value)}
+            />
+          </label>
+        </div>
+        <button
+          className="date-arrow"
+          onClick={() => setSelectedDate(d => shiftDate(d, 1))}
+          disabled={isToday}
+          style={{ opacity: isToday ? 0.3 : 1 }}
+        >›</button>
+        {!isToday && (
+          <button className="btn-ghost date-today-btn" onClick={() => setSelectedDate(todayISO())}>
+            Today
+          </button>
+        )}
+      </div>
+
       <div className="calories-layout">
-        {/* Left column */}
+        {/* ── LEFT COLUMN ─────────────────────────────────── */}
         <div className="calories-left">
 
-          {/* BMR / Profile card */}
+          {/* Always-visible summary */}
           <div className="cal-card">
-            <h2 className="card-title">Resting Calories (BMR)</h2>
-            <p className="card-sub">Enter your stats to estimate how many calories your body burns at rest.</p>
+            <h2 className="card-title">
+              {isToday ? "Today's Summary" : `${formatDateLabel(selectedDate)}`}
+            </h2>
+
+            {/* Calories */}
+            <div className="summary-section">
+              <p className="summary-section-label">Calories</p>
+              <div className="cal-progress-header">
+                <span className="cal-progress-label">Consumed</span>
+                <span className="cal-progress-value">
+                  <span style={{ color: calPct >= 100 ? 'var(--red)' : 'var(--accent)' }}>
+                    {totalCal}
+                  </span>
+                  <span style={{ color: 'var(--text-muted)' }}> / {calGoal} kcal</span>
+                </span>
+              </div>
+              <div className="cal-bar-track">
+                <div
+                  className="cal-bar-fill"
+                  style={{ width: `${calPct}%`, background: calPct >= 100 ? 'var(--red)' : 'var(--accent)' }}
+                />
+              </div>
+              <p className="cal-remaining">
+                {calLeft >= 0
+                  ? `${calLeft} kcal remaining`
+                  : `${Math.abs(calLeft)} kcal over goal`}
+              </p>
+            </div>
+
+            {/* Macros */}
+            <div className="summary-section">
+              <div className="summary-section-header">
+                <p className="summary-section-label">Macros</p>
+                <button className="goal-edit-btn" onClick={showGoalEdit ? saveGoalEdit : openGoalEdit}>
+                  {showGoalEdit ? 'Save' : 'Edit Goals'}
+                </button>
+                {showGoalEdit && (
+                  <button className="goal-cancel-btn" onClick={() => setShowGoalEdit(false)}>Cancel</button>
+                )}
+              </div>
+
+              {showGoalEdit ? (
+                <div className="goal-edit-grid">
+                  <GoalField label="Calories" field="cal" draft={goalDraft} onChange={handleGoalDraft} unit="kcal" />
+                  <GoalField label="Protein"  field="protein" draft={goalDraft} onChange={handleGoalDraft} unit="g" />
+                  <GoalField label="Carbs"    field="carbs"   draft={goalDraft} onChange={handleGoalDraft} unit="g" />
+                  <GoalField label="Fat"      field="fat"     draft={goalDraft} onChange={handleGoalDraft} unit="g" />
+                </div>
+              ) : (
+                <div className="macro-bars">
+                  <MacroBar label="Protein" value={totalProtein} goal={goals.protein} color="blue" />
+                  <MacroBar label="Carbs"   value={totalCarbs}   goal={goals.carbs}   color="orange" />
+                  <MacroBar label="Fat"     value={totalFat}     goal={goals.fat}     color="purple" />
+                </div>
+              )}
+            </div>
+
+            {/* Micros */}
+            <div className="summary-section">
+              <p className="summary-section-label">Micronutrients</p>
+              <div className="micro-grid">
+                <MicroCell label="Fiber"    value={totalFiber}  unit="g"  rdvPct={Math.round((totalFiber / DAILY_VALUES.fiber) * 100)} />
+                <MicroCell label="Net Carbs" value={netCarbs}   unit="g"  rdvPct={null} />
+                <MicroCell label="Sugar"    value={totalSugar}  unit="g"  rdvPct={Math.round((totalSugar / DAILY_VALUES.sugar) * 100)} />
+                <MicroCell label="Sodium"   value={totalSodium} unit="mg" rdvPct={Math.round((totalSodium / DAILY_VALUES.sodium) * 100)} />
+              </div>
+            </div>
+
+            {/* Water */}
+            <div className="summary-section">
+              <p className="summary-section-label">Water</p>
+              <div className="water-controls">
+                <button className="water-btn" onClick={() => setWater(w => Math.max(0, w - 1))}>−</button>
+                <span className="water-label">
+                  {'💧'.repeat(Math.min(waterGlasses, 8))}
+                  {waterGlasses === 0 && <span style={{ color: 'var(--text-muted)' }}>No water logged</span>}
+                  <span style={{ marginLeft: 6, color: 'var(--text-secondary)', fontSize: 12 }}>
+                    {waterGlasses} glass{waterGlasses !== 1 ? 'es' : ''}
+                  </span>
+                </span>
+                <button className="water-btn" onClick={() => setWater(w => w + 1)}>+</button>
+              </div>
+            </div>
+          </div>
+
+          {/* BMR card */}
+          <div className="cal-card">
+            <h2 className="card-title">Calorie Goal (BMR + TDEE)</h2>
+            <p className="card-sub">Enter your stats to set your daily calorie goal.</p>
 
             <div className="profile-grid">
               <div className="field-group">
@@ -135,8 +413,8 @@ export default function Calories() {
               <div className="field-group">
                 <label className="field-label">Age</label>
                 <div className="input-wrap">
-                  <input className="cal-input" type="number" placeholder="25" value={profile.age}
-                    onChange={e => handleProfileChange('age', e.target.value)} />
+                  <input className="cal-input" type="number" placeholder="25"
+                    value={profile.age} onChange={e => handleProfileChange('age', e.target.value)} />
                   <span className="input-unit">yrs</span>
                 </div>
               </div>
@@ -144,8 +422,8 @@ export default function Calories() {
               <div className="field-group">
                 <label className="field-label">Weight</label>
                 <div className="input-wrap">
-                  <input className="cal-input" type="number" placeholder="175" value={profile.weightLbs}
-                    onChange={e => handleProfileChange('weightLbs', e.target.value)} />
+                  <input className="cal-input" type="number" placeholder="175"
+                    value={profile.weightLbs} onChange={e => handleProfileChange('weightLbs', e.target.value)} />
                   <span className="input-unit">lbs</span>
                 </div>
               </div>
@@ -154,13 +432,13 @@ export default function Calories() {
                 <label className="field-label">Height</label>
                 <div className="height-row">
                   <div className="input-wrap">
-                    <input className="cal-input" type="number" placeholder="5" value={profile.heightFt}
-                      onChange={e => handleProfileChange('heightFt', e.target.value)} />
+                    <input className="cal-input" type="number" placeholder="5"
+                      value={profile.heightFt} onChange={e => handleProfileChange('heightFt', e.target.value)} />
                     <span className="input-unit">ft</span>
                   </div>
                   <div className="input-wrap">
-                    <input className="cal-input" type="number" placeholder="10" value={profile.heightIn}
-                      onChange={e => handleProfileChange('heightIn', e.target.value)} />
+                    <input className="cal-input" type="number" placeholder="10"
+                      value={profile.heightIn} onChange={e => handleProfileChange('heightIn', e.target.value)} />
                     <span className="input-unit">in</span>
                   </div>
                 </div>
@@ -169,11 +447,8 @@ export default function Calories() {
 
             <div className="field-group" style={{ marginBottom: 16 }}>
               <label className="field-label">Activity Level</label>
-              <select
-                className="cal-select"
-                value={profile.activity}
-                onChange={e => handleProfileChange('activity', parseFloat(e.target.value))}
-              >
+              <select className="cal-select" value={profile.activity}
+                onChange={e => handleProfileChange('activity', parseFloat(e.target.value))}>
                 {ACTIVITY_MULTIPLIERS.map(a => (
                   <option key={a.value} value={a.value}>{a.label}</option>
                 ))}
@@ -181,7 +456,7 @@ export default function Calories() {
             </div>
 
             <button className="btn-accent" onClick={saveProfile} style={{ width: '100%' }}>
-              Calculate
+              Set My Calorie Goal
             </button>
 
             {bmr && (
@@ -195,67 +470,160 @@ export default function Calories() {
                   <span className="bmr-val bmr-val--accent">{tdee.toLocaleString()}</span>
                   <span className="bmr-label">kcal / day with activity (TDEE)</span>
                 </div>
+                <button
+                  className="btn-ghost"
+                  style={{ marginTop: 10, width: '100%', fontSize: 12 }}
+                  onClick={() => applyTDEEAsGoal(tdee)}
+                >
+                  Apply {tdee.toLocaleString()} kcal as my calorie goal
+                </button>
               </div>
             )}
           </div>
 
-          {/* Daily summary */}
-          {log.length > 0 && (
+          {/* Past logs */}
+          {allDates.length > 0 && (
             <div className="cal-card">
-              <h2 className="card-title">Today's Summary</h2>
-
-              <div className="cal-progress-header">
-                <span className="cal-progress-label">Calories consumed</span>
-                <span className="cal-progress-value">
-                  <span style={{ color: calPct >= 100 ? 'var(--red)' : 'var(--accent)' }}>{totalCal}</span>
-                  <span style={{ color: 'var(--text-muted)' }}> / {calGoal} kcal</span>
-                </span>
-              </div>
-              <div className="cal-bar-track">
-                <div
-                  className="cal-bar-fill"
-                  style={{ width: `${calPct}%`, background: calPct >= 100 ? 'var(--red)' : 'var(--accent)' }}
-                />
-              </div>
-
-              <div className="macro-row">
-                <MacroChip label="Protein" value={totalProtein} unit="g" color="blue" />
-                <MacroChip label="Carbs"   value={totalCarbs}   unit="g" color="orange" />
-                <MacroChip label="Fat"     value={totalFat}     unit="g" color="purple" />
+              <h2 className="card-title">Past Days</h2>
+              <div className="food-log-list">
+                {allDates.map(([date, day]) => {
+                  const cal = (day.log || []).reduce((s, f) => s + (f.cal || 0), 0)
+                  return (
+                    <div key={date} className="past-day">
+                      <div className="past-day-header">
+                        <span className="food-log-name">{formatDateLabel(date)}</span>
+                        <span className="food-log-cal">{cal} kcal</span>
+                        <button className="btn-ghost past-jump-btn" onClick={() => setSelectedDate(date)}>
+                          Go →
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             </div>
           )}
         </div>
 
-        {/* Right column */}
+        {/* ── RIGHT COLUMN ────────────────────────────────── */}
         <div className="calories-right">
+
+          {/* Quick Add */}
+          <div className="cal-card">
+            <div className="card-title-row">
+              <h2 className="card-title">Quick Add</h2>
+              <button className="btn-ghost" style={{ fontSize: 12 }} onClick={() => setShowQA(v => !v)}>
+                {showQA ? 'Hide' : 'Show'}
+              </button>
+            </div>
+            {showQA && (
+              <>
+                <div className="qa-grid">
+                  <div className="field-group">
+                    <label className="field-label">Food name</label>
+                    <input className="cal-input" style={{ width: '100%' }} placeholder="e.g. Greek yogurt"
+                      value={qa.name} onChange={e => handleQA('name', e.target.value)} />
+                  </div>
+                  <div className="field-group">
+                    <label className="field-label">Calories *</label>
+                    <div className="input-wrap">
+                      <input className="cal-input" type="number" placeholder="0"
+                        value={qa.cal} onChange={e => handleQA('cal', e.target.value)} />
+                      <span className="input-unit">kcal</span>
+                    </div>
+                  </div>
+                  <div className="field-group">
+                    <label className="field-label">Protein</label>
+                    <div className="input-wrap">
+                      <input className="cal-input" type="number" placeholder="0"
+                        value={qa.protein} onChange={e => handleQA('protein', e.target.value)} />
+                      <span className="input-unit">g</span>
+                    </div>
+                  </div>
+                  <div className="field-group">
+                    <label className="field-label">Carbs</label>
+                    <div className="input-wrap">
+                      <input className="cal-input" type="number" placeholder="0"
+                        value={qa.carbs} onChange={e => handleQA('carbs', e.target.value)} />
+                      <span className="input-unit">g</span>
+                    </div>
+                  </div>
+                  <div className="field-group">
+                    <label className="field-label">Fat</label>
+                    <div className="input-wrap">
+                      <input className="cal-input" type="number" placeholder="0"
+                        value={qa.fat} onChange={e => handleQA('fat', e.target.value)} />
+                      <span className="input-unit">g</span>
+                    </div>
+                  </div>
+                </div>
+
+                <button className="btn-ghost" style={{ fontSize: 12, marginTop: 8 }}
+                  onClick={() => setShowMicros(v => !v)}>
+                  {showMicros ? '▲ Hide micronutrients' : '▼ Add micronutrients (optional)'}
+                </button>
+
+                {showMicros && (
+                  <div className="qa-micro-grid">
+                    <div className="field-group">
+                      <label className="field-label">Fiber</label>
+                      <div className="input-wrap">
+                        <input className="cal-input" type="number" placeholder="0"
+                          value={qa.fiber} onChange={e => handleQA('fiber', e.target.value)} />
+                        <span className="input-unit">g</span>
+                      </div>
+                    </div>
+                    <div className="field-group">
+                      <label className="field-label">Sugar</label>
+                      <div className="input-wrap">
+                        <input className="cal-input" type="number" placeholder="0"
+                          value={qa.sugar} onChange={e => handleQA('sugar', e.target.value)} />
+                        <span className="input-unit">g</span>
+                      </div>
+                    </div>
+                    <div className="field-group">
+                      <label className="field-label">Sodium</label>
+                      <div className="input-wrap">
+                        <input className="cal-input" type="number" placeholder="0"
+                          value={qa.sodium} onChange={e => handleQA('sodium', e.target.value)} />
+                        <span className="input-unit">mg</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <button className="btn-accent" style={{ width: '100%', marginTop: 12 }}
+                  onClick={addQuickEntry} disabled={!qa.cal}>
+                  Add Entry
+                </button>
+              </>
+            )}
+          </div>
 
           {/* Text entry */}
           <div className="cal-card">
-            <h2 className="card-title">Log Food — Text</h2>
-            <p className="card-sub">Describe what you ate and the backend will calculate the macros.</p>
+            <h2 className="card-title">Log Food — Describe It</h2>
+            <p className="card-sub">Describe what you ate and AI will estimate the macros (requires Ollama + LLaVA running locally).</p>
             <div className="food-text-row">
               <input
                 className="food-text-input"
-                placeholder='e.g. "6oz chicken breast, no seasoning"'
+                placeholder='e.g. "6oz grilled chicken breast"'
                 value={foodText}
                 onChange={e => setFoodText(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && addFoodText()}
               />
-              <button
-                className={`btn-accent add-btn ${logLoading ? 'add-btn--loading' : ''}`}
-                onClick={addFoodText}
-                disabled={logLoading || !foodText.trim()}
-              >
+              <button className={`btn-accent add-btn ${logLoading ? 'add-btn--loading' : ''}`}
+                onClick={addFoodText} disabled={logLoading || !foodText.trim()}>
                 {logLoading ? '…' : 'Add'}
               </button>
             </div>
+            {logError && <p className="error-msg">{logError}</p>}
           </div>
 
           {/* Photo entry */}
           <div className="cal-card">
             <h2 className="card-title">Log Food — Photo</h2>
-            <p className="card-sub">Take or upload a photo and the backend will identify and estimate the macros.</p>
+            <p className="card-sub">Upload a photo and AI will identify the food and estimate macros (requires Ollama + LLaVA).</p>
 
             <div
               className={`photo-drop ${photoPreview ? 'photo-drop--filled' : ''}`}
@@ -272,25 +640,21 @@ export default function Calories() {
               )}
             </div>
 
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              style={{ display: 'none' }}
-              onChange={handlePhotoChange}
-            />
+            <input ref={fileRef} type="file" accept="image/*" capture="environment"
+              style={{ display: 'none' }} onChange={handlePhotoChange} />
 
             {photoPreview && (
               <div className="photo-actions">
-                <button className="btn-ghost" onClick={() => { setPhotoPreview(null); setPhotoName(''); if (fileRef.current) fileRef.current.value = '' }}>
-                  Remove
-                </button>
+                <button className="btn-ghost" onClick={() => {
+                  setPhotoPreview(null); setPhotoFile(null); setPhotoError(null)
+                  if (fileRef.current) fileRef.current.value = ''
+                }}>Remove</button>
                 <button className="btn-accent" onClick={analyzePhoto} disabled={photoLoading}>
                   {photoLoading ? 'Analyzing…' : 'Analyze Photo'}
                 </button>
               </div>
             )}
+            {photoError && <p className="error-msg">{photoError}</p>}
           </div>
 
           {/* Food log */}
@@ -309,7 +673,8 @@ export default function Calories() {
                 {log.map((item, i) => (
                   <div key={i} className="food-log-row">
                     <span className="food-log-name">
-                      {item.source === 'photo' && <span className="source-tag">📷</span>}
+                      {item.source === 'photo'  && <span className="source-tag">📷</span>}
+                      {item.source === 'manual' && <span className="source-tag">✏️</span>}
                       {item.name}
                     </span>
                     <span className="food-log-cal">{item.cal}</span>
@@ -328,11 +693,56 @@ export default function Calories() {
   )
 }
 
-function MacroChip({ label, value, unit, color }) {
+// ─── sub-components ────────────────────────────────────────────
+function MacroBar({ label, value, goal, color }) {
+  const pct = Math.min(Math.round((value / goal) * 100), 100)
+  const over = value > goal
   return (
-    <div className={`macro-chip macro-chip--${color}`}>
-      <span className="macro-val">{value}{unit}</span>
-      <span className="macro-label">{label}</span>
+    <div className="macro-bar-row">
+      <div className="macro-bar-header">
+        <span className="macro-bar-label">{label}</span>
+        <span className="macro-bar-value" style={{ color: over ? 'var(--red)' : undefined }}>
+          {value}g
+        </span>
+        <span className="macro-bar-pct">/ {goal}g</span>
+      </div>
+      <div className="macro-bar-track">
+        <div
+          className={`macro-bar-fill macro-bar-fill--${color}`}
+          style={{ width: `${pct}%`, background: over ? 'var(--red)' : undefined }}
+        />
+      </div>
+    </div>
+  )
+}
+
+function GoalField({ label, field, draft, onChange, unit }) {
+  return (
+    <div className="goal-edit-field">
+      <label className="field-label">{label}</label>
+      <div className="input-wrap">
+        <input
+          className="cal-input"
+          type="number"
+          value={draft[field]}
+          onChange={e => onChange(field, e.target.value)}
+        />
+        <span className="input-unit">{unit}</span>
+      </div>
+    </div>
+  )
+}
+
+function MicroCell({ label, value, unit, rdvPct }) {
+  return (
+    <div className="micro-cell">
+      <span className="micro-cell-val">
+        {value}<span className="micro-unit">{unit}</span>
+      </span>
+      <span className="micro-cell-label">{label}</span>
+      {rdvPct !== null && (
+        <span className="micro-cell-rdv">{rdvPct}% DV</span>
+      )}
     </div>
   )
 }
