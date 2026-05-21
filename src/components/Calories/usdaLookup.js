@@ -21,6 +21,15 @@ function getVal(nutrients, id) {
   return nutrients.find(n => n.nutrientId === id)?.value ?? 0
 }
 
+// Slashes and other special chars break the USDA search query (e.g. "93/7" → empty results)
+function sanitizeQuery(name) {
+  return name
+    .replace(/\//g, ' ')
+    .replace(/[%#&+@]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 function toGrams(amount, unit) {
   const u = (unit || 'g').toLowerCase().trim()
   if (u === 'oz' || u === 'ounce' || u === 'ounces')           return amount * 28.3495
@@ -44,10 +53,12 @@ export async function lookupUSDA(name, amount, unit) {
   // "serving" means the USDA per-100g value, which is already a usable reference
   const factor = grams / 100
 
+  const query = sanitizeQuery(name)
+
   let res
   try {
     res = await fetch(
-      `${BASE}/foods/search?query=${encodeURIComponent(name)}&api_key=${API_KEY}&pageSize=3&dataType=Foundation,SR%20Legacy,Branded`
+      `${BASE}/foods/search?query=${encodeURIComponent(query)}&api_key=${API_KEY}&pageSize=3&dataType=Foundation,SR%20Legacy,Branded`
     )
   } catch {
     return null
