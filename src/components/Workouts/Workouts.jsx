@@ -386,6 +386,7 @@ function playBeep() {
 // ── Log Session sub-component ────────────────────────────────
 function LogSession({ session, onChange, onSave, onCancel, history = [] }) {
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [historyForEx, setHistoryForEx] = useState(null)
   const [timer, setTimer] = useState({ active: false, seconds: 90, target: 90, paused: false })
   const intervalRef = useRef(null)
 
@@ -474,6 +475,41 @@ function LogSession({ session, onChange, onSave, onCancel, history = [] }) {
         />
       )}
 
+      {historyForEx && (
+        <ExerciseHistoryModal
+          exerciseName={historyForEx}
+          history={history}
+          onClose={() => setHistoryForEx(null)}
+        />
+      )}
+
+      {timer.active && (
+        <div
+          className="rest-timer-overlay"
+          onClick={e => e.target === e.currentTarget && dismissTimer()}
+        >
+          <div className="rest-timer-popup">
+            <div className="rest-timer-popup-header">
+              <span className="rest-timer-label">Rest Timer</span>
+              <button className="picker-close" onClick={dismissTimer} title="Dismiss">✕</button>
+            </div>
+            <div className="rest-timer-popup-time">
+              {String(Math.floor(timer.seconds / 60)).padStart(2, '0')}:{String(timer.seconds % 60).padStart(2, '0')}
+            </div>
+            <div className="rest-timer-popup-track">
+              <div className="rest-timer-fill" style={{ width: `${(timer.seconds / timer.target) * 100}%` }} />
+            </div>
+            <div className="rest-timer-popup-controls">
+              <button className="btn-ghost" onClick={pauseTimer}>
+                {timer.paused ? '▶ Resume' : '⏸ Pause'}
+              </button>
+              <button className="btn-ghost" onClick={resetTimer}>↺ Reset</button>
+              <button className="btn-accent" onClick={dismissTimer}>Done</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="log-session">
         <div className="log-session-header">
           <input
@@ -494,6 +530,14 @@ function LogSession({ session, onChange, onSave, onCancel, history = [] }) {
                   value={ex.name}
                   onChange={e => updateExerciseName(ei, e.target.value)}
                 />
+                <button
+                  className="ex-history-btn"
+                  onClick={() => setHistoryForEx(ex.name)}
+                  disabled={!ex.name.trim()}
+                  title="View this exercise's history"
+                >
+                  📊 History
+                </button>
                 {session.exercises.length > 1 && (
                   <button className="remove-ex-btn" onClick={() => removeExercise(ei)}>Remove</button>
                 )}
@@ -562,27 +606,6 @@ function LogSession({ session, onChange, onSave, onCancel, history = [] }) {
           />
           <span className="rest-timer-config-label">s</span>
         </div>
-
-        {timer.active && (
-          <div className="rest-timer-bar">
-            <div className="rest-timer-left">
-              <span className="rest-timer-label">Rest</span>
-              <span className="rest-timer-time">
-                {String(Math.floor(timer.seconds / 60)).padStart(2, '0')}:{String(timer.seconds % 60).padStart(2, '0')}
-              </span>
-            </div>
-            <div className="rest-timer-track">
-              <div className="rest-timer-fill" style={{ width: `${(timer.seconds / timer.target) * 100}%` }} />
-            </div>
-            <div className="rest-timer-controls">
-              <button className="btn-ghost rest-ctrl-btn" onClick={pauseTimer}>
-                {timer.paused ? '▶' : '⏸'}
-              </button>
-              <button className="btn-ghost rest-ctrl-btn" onClick={resetTimer}>↺</button>
-              <button className="btn-ghost rest-ctrl-btn" onClick={dismissTimer}>✕</button>
-            </div>
-          </div>
-        )}
 
         <div className="log-session-actions">
           <button className="btn-ghost" onClick={onCancel}>Cancel</button>
@@ -692,6 +715,61 @@ function ExercisePicker({ onSelect, onClose }) {
             <button className="custom-trigger" onClick={() => setShowCustom(true)}>
               + Create custom exercise
             </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Exercise History modal ───────────────────────────────────
+function ExerciseHistoryModal({ exerciseName, history, onClose }) {
+  const name = exerciseName.toLowerCase().trim()
+  const entries = history
+    .map(s => {
+      const exercise = s.exercises?.find(e => e.name.toLowerCase().trim() === name)
+      return exercise ? { id: s.id, label: s.label, date: s.date, exercise } : null
+    })
+    .filter(Boolean)
+
+  return (
+    <div className="picker-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="picker-modal">
+        <div className="picker-header">
+          <h2 className="picker-title">{exerciseName} — History</h2>
+          <button className="picker-close" onClick={onClose}>✕</button>
+        </div>
+
+        <div className="ex-history-body">
+          {entries.length === 0 ? (
+            <p className="picker-empty">No previous sessions logged for "{exerciseName}".</p>
+          ) : (
+            entries.map(entry => {
+              const maxWeight = Math.max(0, ...entry.exercise.sets.map(s => Number(s.weight) || 0))
+              return (
+                <div key={entry.id} className="ex-history-entry">
+                  <div className="ex-history-entry-header">
+                    <span className="history-label">{entry.label}</span>
+                    <span className="history-meta">
+                      {formatHistoryDate(entry.date)}
+                      {maxWeight > 0 ? ` · top ${maxWeight} lbs` : ''}
+                    </span>
+                  </div>
+                  <div className="history-sets-table">
+                    <div className="history-sets-header">
+                      <span>Set</span><span>Reps</span><span>Weight</span>
+                    </div>
+                    {entry.exercise.sets.map((s, si) => (
+                      <div key={si} className="history-set-row">
+                        <span className="set-num">{si + 1}</span>
+                        <span>{s.reps} reps</span>
+                        <span>{s.weight ? `${s.weight} lbs` : '—'}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )
+            })
           )}
         </div>
       </div>
