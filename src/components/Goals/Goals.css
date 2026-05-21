@@ -255,3 +255,79 @@
   font-size: 11px;
   color: var(--text-muted);
 }
+
+/* ──────────────────────────────────────────────────────────────
+   Mobile — stack everything vertically
+   ────────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .goals-view {
+    padding: 18px 16px;
+  }
+
+  /* Page header: title + add button stacked */
+  .goals-view .page-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .goals-view .page-header .btn-accent {
+    width: 100%;
+    max-width: 480px;
+  }
+
+  /* Two-column layout → single column */
+  .goals-layout {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  /* Add Goal form: stack input rows */
+  .add-goal-row {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .goal-input,
+  .goal-input--sm {
+    width: 100%;
+    max-width: 480px;
+  }
+  .goal-radio-label {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  /* Goal card: title row + edit stacked; current/arrow/target stacked */
+  .goal-card { padding: 16px; }
+  .goal-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .goal-edit-btn { align-self: flex-end; }
+
+  .goal-values {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  .goal-arrow { transform: rotate(90deg); }
+
+  .goal-current-val,
+  .goal-target-val {
+    font-size: 24px;
+  }
+
+  /* Inline edit input stacks under the goal label */
+  .inline-edit {
+    flex-wrap: wrap;
+  }
+  .inline-input { width: 100%; max-width: 200px; }
+
+  /* Milestones section: tighter padding */
+  .milestones-section { padding: 18px; }
+}
