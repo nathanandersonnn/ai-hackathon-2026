@@ -126,6 +126,11 @@ export default function Dashboard() {
           )}
         </div>
 
+        <div className="card weight-chart-card">
+          <h2 className="card-title">Weight Trend</h2>
+          <WeightChart logs={logs} />
+        </div>
+
         <div className="card sessions-card">
           <h2 className="card-title">Recent Sessions</h2>
           {loading ? (
@@ -167,6 +172,64 @@ export default function Dashboard() {
 function formatShortDate(iso) {
   if (!iso) return ''
   return new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
+function formatChartDate(iso) {
+  if (!iso) return ''
+  return new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
+function WeightChart({ logs }) {
+  const data = logs
+    .filter(l => l.weight && l.weight > 0)
+    .slice()
+    .sort((a, b) => a.date.localeCompare(b.date))
+
+  if (data.length < 2) {
+    return <p className="card-empty">Log weight for 2+ days to see your trend.</p>
+  }
+
+  const weights = data.map(l => l.weight)
+  const minW    = Math.min(...weights)
+  const maxW    = Math.max(...weights)
+  const range   = maxW - minW || 1
+
+  const W = 400, H = 140
+  const PAD = { top: 16, right: 16, bottom: 28, left: 44 }
+  const plotW = W - PAD.left - PAD.right
+  const plotH = H - PAD.top  - PAD.bottom
+
+  const xScale = i => PAD.left + (i / Math.max(data.length - 1, 1)) * plotW
+  const yScale = w => PAD.top  + plotH - ((w - minW) / range) * plotH
+
+  const polyPoints = data.map((d, i) => `${xScale(i)},${yScale(d.weight)}`).join(' ')
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ display: 'block', overflow: 'visible' }}>
+      {/* grid lines */}
+      {[0, 0.5, 1].map(f => (
+        <line key={f}
+          x1={PAD.left} x2={W - PAD.right}
+          y1={PAD.top + (1 - f) * plotH} y2={PAD.top + (1 - f) * plotH}
+          stroke="var(--border)" strokeWidth="1"
+          strokeDasharray={f === 0.5 ? '4 4' : ''} />
+      ))}
+      {/* trend line */}
+      <polyline points={polyPoints} fill="none"
+        stroke="var(--accent)" strokeWidth="2.5"
+        strokeLinejoin="round" strokeLinecap="round" />
+      {/* dots */}
+      {data.map((d, i) => (
+        <circle key={i} cx={xScale(i)} cy={yScale(d.weight)} r="3.5" fill="var(--accent)" />
+      ))}
+      {/* y-axis labels */}
+      <text x={PAD.left - 6} y={PAD.top + 4}        textAnchor="end" fontSize="10" fill="var(--text-muted)">{maxW} lbs</text>
+      <text x={PAD.left - 6} y={PAD.top + plotH + 4} textAnchor="end" fontSize="10" fill="var(--text-muted)">{minW} lbs</text>
+      {/* x-axis: first and last dates */}
+      <text x={PAD.left}         y={H - 6} textAnchor="start" fontSize="10" fill="var(--text-muted)">{formatChartDate(data[0].date)}</text>
+      <text x={W - PAD.right}    y={H - 6} textAnchor="end"   fontSize="10" fill="var(--text-muted)">{formatChartDate(data[data.length - 1].date)}</text>
+    </svg>
+  )
 }
 
 function StatCard({ label, value, unit, color }) {

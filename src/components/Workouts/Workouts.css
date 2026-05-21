@@ -688,3 +688,102 @@
   border-color: var(--border-light);
   color: var(--text-primary);
 }
+
+/* ── Progressive overload warning ── */
+.progression-warning {
+  font-size: 12px;
+  color: var(--color-warn, #f59e0b);
+  margin: 4px 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* ── Rest-timer trigger button (per set row) ── */
+.rest-set-btn {
+  background: transparent;
+  border: none;
+  font-size: 15px;
+  cursor: pointer;
+  padding: 0 4px;
+  opacity: 0.55;
+  transition: opacity 0.15s;
+  line-height: 1;
+}
+.rest-set-btn:hover { opacity: 1; }
+
+/* ── Rest-timer config row ── */
+.rest-timer-config {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 12px 0 4px;
+}
+.rest-timer-config-label {
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+.rest-timer-config-input {
+  width: 56px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 13px;
+  padding: 4px 8px;
+  text-align: center;
+  outline: none;
+}
+.rest-timer-config-input:focus { border-color: var(--accent); }
+
+/* ── Active rest-timer bar ── */
+.rest-timer-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  margin: 8px 0;
+}
+.rest-timer-left {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 52px;
+}
+.rest-timer-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.rest-timer-time {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.rest-timer-track {
+  flex: 1;
+  height: 6px;
+  background: var(--border);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.rest-timer-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 99px;
+  transition: width 0.9s linear;
+}
+.rest-timer-controls {
+  display: flex;
+  gap: 4px;
+}
+.rest-ctrl-btn {
+  padding: 5px 10px !important;
+  font-size: 14px !important;
+}

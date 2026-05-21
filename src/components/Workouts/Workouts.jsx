@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { EXERCISE_LIBRARY, MUSCLE_GROUPS } from './exerciseLibrary'
 import { getWorkoutSessions, saveWorkoutSession, deleteWorkoutSession } from '../../lib/supabase/workouts'
 import './Workouts.css'
@@ -344,15 +344,79 @@ export default function Workouts() {
           onChange={setSession}
           onSave={saveSession}
           onCancel={() => { setSession(null); setTab('browse') }}
+          history={history}
         />
       )}
     </div>
   )
 }
 
+// ── Progressive overload check ───────────────────────────────
+// Returns true when the named exercise shows no weight increase across the
+// last 3 sessions that included it (only fires when there are ≥3 sessions).
+function checkProgression(exerciseName, history) {
+  if (!exerciseName.trim()) return false
+  const name = exerciseName.toLowerCase().trim()
+  const relevant = history
+    .filter(s => s.exercises?.some(e => e.name.toLowerCase().trim() === name))
+    .slice(0, 3) // history is already newest-first
+  if (relevant.length < 3) return false
+  // Max weight per session; index 0 = most recent, 2 = oldest
+  const maxWeights = relevant.map(s => {
+    const ex = s.exercises.find(e => e.name.toLowerCase().trim() === name)
+    return Math.max(0, ...(ex?.sets?.map(st => Number(st.weight) || 0) ?? [0]))
+  })
+  return maxWeights[0] > 0 && maxWeights[0] <= maxWeights[2]
+}
+
+// ── Web Audio beep ───────────────────────────────────────────
+function playBeep() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)()
+    const osc  = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.connect(gain); gain.connect(ctx.destination)
+    osc.frequency.value = 880; osc.type = 'sine'
+    gain.gain.setValueAtTime(0.3, ctx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5)
+    osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.5)
+  } catch (e) { console.warn('Beep failed:', e) }
+}
+
 // ── Log Session sub-component ────────────────────────────────
-function LogSession({ session, onChange, onSave, onCancel }) {
+function LogSession({ session, onChange, onSave, onCancel, history = [] }) {
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [timer, setTimer] = useState({ active: false, seconds: 90, target: 90, paused: false })
+  const intervalRef = useRef(null)
+
+  useEffect(() => {
+    if (timer.active && !timer.paused) {
+      intervalRef.current = setInterval(() => {
+        setTimer(t => {
+          if (t.seconds <= 1) {
+            clearInterval(intervalRef.current)
+            playBeep()
+            return { ...t, active: false, seconds: 0 }
+          }
+          return { ...t, seconds: t.seconds - 1 }
+        })
+      }, 1000)
+    } else {
+      clearInterval(intervalRef.current)
+    }
+    return () => clearInterval(intervalRef.current)
+  }, [timer.active, timer.paused])
+
+  function startRestTimer() {
+    setTimer(t => ({ ...t, active: true, seconds: t.target, paused: false }))
+  }
+  function pauseTimer()   { setTimer(t => ({ ...t, paused: !t.paused })) }
+  function resetTimer()   { setTimer(t => ({ ...t, seconds: t.target, paused: false })) }
+  function dismissTimer() { clearInterval(intervalRef.current); setTimer(t => ({ ...t, active: false })) }
+  function setTimerTarget(val) {
+    const n = Math.max(10, Math.min(600, parseInt(val) || 90))
+    setTimer(t => ({ ...t, target: n, seconds: n, active: false }))
+  }
 
   function updateLabel(val) {
     onChange(s => ({ ...s, label: val }))
@@ -434,6 +498,11 @@ function LogSession({ session, onChange, onSave, onCancel }) {
                   <button className="remove-ex-btn" onClick={() => removeExercise(ei)}>Remove</button>
                 )}
               </div>
+              {checkProgression(ex.name, history) && (
+                <p className="progression-warning">
+                  ⚠️ No weight progression in last 3 sessions — consider increasing weight
+                </p>
+              )}
 
               <div className="log-sets-table">
                 <div className="log-sets-header">
@@ -460,6 +529,11 @@ function LogSession({ session, onChange, onSave, onCancel }) {
                       onChange={e => updateSet(ei, si, 'weight', e.target.value)}
                     />
                     <button
+                      className="rest-set-btn"
+                      onClick={startRestTimer}
+                      title={`Start ${timer.target}s rest timer`}
+                    >⏱</button>
+                    <button
                       className="remove-set-btn"
                       onClick={() => removeSet(ei, si)}
                       disabled={ex.sets.length === 1}
@@ -474,6 +548,40 @@ function LogSession({ session, onChange, onSave, onCancel }) {
         </div>
 
         <button className="add-exercise-btn" onClick={() => setPickerOpen(true)}>+ Add Exercise</button>
+
+        <div className="rest-timer-config">
+          <span className="rest-timer-config-label">⏱ Rest duration:</span>
+          <input
+            type="number"
+            className="rest-timer-config-input"
+            value={timer.target}
+            min="10"
+            max="600"
+            onChange={e => setTimerTarget(e.target.value)}
+          />
+          <span className="rest-timer-config-label">s</span>
+        </div>
+
+        {timer.active && (
+          <div className="rest-timer-bar">
+            <div className="rest-timer-left">
+              <span className="rest-timer-label">Rest</span>
+              <span className="rest-timer-time">
+                {String(Math.floor(timer.seconds / 60)).padStart(2, '0')}:{String(timer.seconds % 60).padStart(2, '0')}
+              </span>
+            </div>
+            <div className="rest-timer-track">
+              <div className="rest-timer-fill" style={{ width: `${(timer.seconds / timer.target) * 100}%` }} />
+            </div>
+            <div className="rest-timer-controls">
+              <button className="btn-ghost rest-ctrl-btn" onClick={pauseTimer}>
+                {timer.paused ? '▶' : '⏸'}
+              </button>
+              <button className="btn-ghost rest-ctrl-btn" onClick={resetTimer}>↺</button>
+              <button className="btn-ghost rest-ctrl-btn" onClick={dismissTimer}>✕</button>
+            </div>
+          </div>
+        )}
 
         <div className="log-session-actions">
           <button className="btn-ghost" onClick={onCancel}>Cancel</button>
