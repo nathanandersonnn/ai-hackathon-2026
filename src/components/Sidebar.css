@@ -174,9 +174,12 @@
 
   .sidebar::-webkit-scrollbar { display: none; }
 
-  /* Logo + user-card don't belong in a bottom bar */
+  /* Logo + user-card don't belong in a bottom bar.
+     Form Check + About Us are hidden on mobile per product call. */
   .sidebar-logo,
-  .sidebar-user {
+  .sidebar-user,
+  .sidebar .nav-item[data-nav-id="camera"],
+  .about-nav-item {
     display: none;
   }
 

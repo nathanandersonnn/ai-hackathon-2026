@@ -27,6 +27,7 @@ export default function Sidebar({ active, onNavigate, user, onSignOut }) {
         {NAV_ITEMS.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
+            data-nav-id={id}
             className={`nav-item ${active === id ? 'nav-item--active' : ''}`}
             onClick={() => onNavigate(id)}
           >
