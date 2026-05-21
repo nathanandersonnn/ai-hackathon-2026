@@ -4,15 +4,15 @@ const MODEL = 'llava'
 const IMAGE_PROMPT =
   `You are a nutrition expert. Look at this food image and estimate the nutritional content for the portion visible.
 Respond with ONLY a JSON object — no markdown, no explanation, nothing else:
-{"name":"food name","cal":0,"protein":0,"carbs":0,"fat":0}
-cal = total kilocalories, protein/carbs/fat = grams rounded to nearest integer.`
+{"name":"food name","cal":0,"protein":0,"carbs":0,"fat":0,"fiber":0,"sugar":0,"sodium":0}
+cal = total kilocalories. protein/carbs/fat/fiber/sugar = grams rounded to nearest integer. sodium = milligrams rounded to nearest integer.`
 
 const TEXT_PROMPT = (description) =>
   `You are a nutrition expert. Estimate the nutritional content of: "${description}".
 Assume a typical single serving unless a quantity is specified (e.g. "6oz", "1 cup").
 Respond with ONLY a JSON object — no markdown, no explanation, nothing else:
-{"name":"food name","cal":0,"protein":0,"carbs":0,"fat":0}
-cal = total kilocalories, protein/carbs/fat = grams rounded to nearest integer.`
+{"name":"food name","cal":0,"protein":0,"carbs":0,"fat":0,"fiber":0,"sugar":0,"sodium":0}
+cal = total kilocalories. protein/carbs/fat/fiber/sugar = grams rounded to nearest integer. sodium = milligrams rounded to nearest integer.`
 
 export function useFoodScanner() {
   async function analyzeImage(imageUrl) {
