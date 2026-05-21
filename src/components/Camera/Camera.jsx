@@ -4,9 +4,20 @@ import { createTracker } from '../../lib/pose/exercises'
 import { analyzeSet } from '../../lib/api/formCheck'
 import './Camera.css'
 
-const EXERCISES = ['Squat', 'Push-up', 'Deadlift', 'Bicep Curl']
+const EXERCISES = [
+  'Squat',
+  'Push-up',
+  'Deadlift',
+  'Bicep Curl',
+  'Lunge',
+  'Overhead Press',
+  'Lateral Raise',
+  'Glute Bridge',
+  'Sit-up',
+  'Tricep Extension',
+]
 
-export default function Camera() {
+export default function Camera({ onNavigate }) {
   const [active, setActive] = useState(false)
   const [exercise, setExercise] = useState('Squat')
   const [repCount, setRepCount] = useState(0)
@@ -436,7 +447,18 @@ export default function Camera() {
             {feedback.map((f, i) => (
               <div key={i} className={`feedback-item feedback-item--${f.type}`}>
                 <span className="feedback-icon">{f.type === 'good' ? '✓' : '!'}</span>
-                <span>{f.text}</span>
+                <span className="feedback-text">{f.text}</span>
+                {f.type === 'warn' && onNavigate && (
+                  <button
+                    className="feedback-ask-btn"
+                    onClick={() => onNavigate('chat', {
+                      chatSeed: `My form check flagged this during ${exercise}: "${f.text}". How do I work on this — what cue or drill should I use?`,
+                    })}
+                    title="Ask the AI coach how to fix this"
+                  >
+                    Ask coach →
+                  </button>
+                )}
               </div>
             ))}
 
@@ -455,7 +477,18 @@ export default function Camera() {
                   <span className="feedback-icon" style={{ fontWeight: 700, fontSize: 11, minWidth: 52 }}>
                     −{d.pointsDeducted}pts
                   </span>
-                  <span style={{ fontSize: 13 }}>{d.reason}</span>
+                  <span className="feedback-text" style={{ fontSize: 13 }}>{d.reason}</span>
+                  {onNavigate && (
+                    <button
+                      className="feedback-ask-btn"
+                      onClick={() => onNavigate('chat', {
+                        chatSeed: `My form check deducted points on ${exercise} for: "${d.reason}". How do I work on this — what cue or drill should I use?`,
+                      })}
+                      title="Ask the AI coach how to fix this"
+                    >
+                      Ask coach →
+                    </button>
+                  )}
                 </div>
               ))}
             </div>

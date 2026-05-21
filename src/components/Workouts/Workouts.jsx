@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { EXERCISE_LIBRARY, MUSCLE_GROUPS } from './exerciseLibrary'
 import { getWorkoutSessions, saveWorkoutSession, updateWorkoutSession, deleteWorkoutSession } from '../../lib/supabase/workouts'
+import { getWorkoutTemplates, saveWorkoutTemplate, deleteWorkoutTemplate } from '../../lib/supabase/workoutTemplates'
 import './Workouts.css'
 
 // Epley 1RM estimate: weight × (1 + reps / 30). Returns 0 for unweighted/empty sets.
@@ -159,6 +160,8 @@ export default function Workouts() {
   const [openCard, setOpenCard] = useState(null)
   const [history, setHistory] = useState([])
   const [historyLoading, setHistoryLoading] = useState(true)
+  const [userTemplates, setUserTemplates] = useState([])
+  const [showCreatePreset, setShowCreatePreset] = useState(false)
   const [expandedHistory, setExpandedHistory] = useState(null)
   const [historyExerciseFocus, setHistoryExerciseFocus] = useState(null) // name of exercise to drill into from History tab
   const [editingId, setEditingId] = useState(null)   // id of history row being edited inline
@@ -172,7 +175,34 @@ export default function Workouts() {
       .then(setHistory)
       .catch(err => console.error('Failed to load workouts:', err))
       .finally(() => setHistoryLoading(false))
+
+    getWorkoutTemplates()
+      .then(setUserTemplates)
+      .catch(err => console.error('Failed to load presets:', err))
   }, [])
+
+  async function handleCreatePreset(template) {
+    try {
+      const saved = await saveWorkoutTemplate(template)
+      setUserTemplates(prev => [saved, ...prev])
+      setShowCreatePreset(false)
+    } catch (err) {
+      console.error('Save preset failed:', err)
+      alert('Could not save preset — check console.')
+    }
+  }
+
+  async function handleDeletePreset(id) {
+    if (!confirm('Delete this preset? This cannot be undone.')) return
+    try {
+      await deleteWorkoutTemplate(id)
+      setUserTemplates(prev => prev.filter(t => t.id !== id))
+      if (openCard === id) setOpenCard(null)
+    } catch (err) {
+      console.error('Delete preset failed:', err)
+      alert('Could not delete preset — check console.')
+    }
+  }
 
   function startFromTemplate(template) {
     setSession(templateToLogSession(template))
@@ -297,44 +327,71 @@ export default function Workouts() {
       {/* ── BROWSE ── */}
       {tab === 'browse' && (
         <div className="workout-cards">
-          {WORKOUT_TEMPLATES.map(w => (
-            <div key={w.id} className={`workout-card workout-card--${w.color} ${openCard === w.id ? 'workout-card--open' : ''}`}>
-              <button className="workout-card-header" onClick={() => setOpenCard(openCard === w.id ? null : w.id)}>
-                <div className="workout-card-left">
-                  <span className="workout-icon">{w.icon}</span>
-                  <div className="workout-title-block">
-                    <span className="workout-label">{w.label}</span>
-                    <span className="workout-desc">{w.description}</span>
-                  </div>
-                </div>
-                <div className="workout-card-right">
-                  <span className={`workout-tag workout-tag--${w.color}`}>{w.tag}</span>
-                  <ChevronIcon open={openCard === w.id} />
-                </div>
-              </button>
+          <button className="create-preset-btn" onClick={() => setShowCreatePreset(true)}>
+            + Create Your Own Preset
+          </button>
 
-              {openCard === w.id && (
-                <div className="workout-body">
-                  <div className="exercise-table">
-                    <div className="ex-table-header">
-                      <span>Exercise</span><span>Sets</span><span>Reps / Time</span>
-                    </div>
-                    {w.exercises.map((ex, i) => (
-                      <div key={i} className="ex-row">
-                        <span className="ex-name">{ex.name}</span>
-                        <span className="ex-sets">{ex.sets}</span>
-                        <span className="ex-reps">{ex.reps}</span>
+          {[...userTemplates, ...WORKOUT_TEMPLATES].map(w => {
+            const isCustom = !!w.user_id
+            const color = w.color || 'accent'
+            return (
+              <div key={w.id} className={`workout-card workout-card--${color} ${openCard === w.id ? 'workout-card--open' : ''}`}>
+                <div className="workout-card-header-row">
+                  <button className="workout-card-header" onClick={() => setOpenCard(openCard === w.id ? null : w.id)}>
+                    <div className="workout-card-left">
+                      <span className="workout-icon">{w.icon || '🎯'}</span>
+                      <div className="workout-title-block">
+                        <span className="workout-label">{w.label}</span>
+                        {w.description && <span className="workout-desc">{w.description}</span>}
                       </div>
-                    ))}
-                  </div>
-                  <div className="workout-actions">
-                    <button className="btn-accent" onClick={() => startFromTemplate(w)}>Start Session</button>
-                  </div>
+                    </div>
+                    <div className="workout-card-right">
+                      {w.tag && <span className={`workout-tag workout-tag--${color}`}>{w.tag}</span>}
+                      {isCustom && <span className="workout-custom-badge">Custom</span>}
+                      <ChevronIcon open={openCard === w.id} />
+                    </div>
+                  </button>
+                  {isCustom && (
+                    <button
+                      className="history-delete-btn workout-delete-btn"
+                      onClick={() => handleDeletePreset(w.id)}
+                      title="Delete this preset"
+                    >
+                      ✕
+                    </button>
+                  )}
                 </div>
-              )}
-            </div>
-          ))}
+
+                {openCard === w.id && (
+                  <div className="workout-body">
+                    <div className="exercise-table">
+                      <div className="ex-table-header">
+                        <span>Exercise</span><span>Sets</span><span>Reps / Time</span>
+                      </div>
+                      {(w.exercises ?? []).map((ex, i) => (
+                        <div key={i} className="ex-row">
+                          <span className="ex-name">{ex.name}</span>
+                          <span className="ex-sets">{ex.sets}</span>
+                          <span className="ex-reps">{ex.reps}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="workout-actions">
+                      <button className="btn-accent" onClick={() => startFromTemplate(w)}>Start Session</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
+      )}
+
+      {showCreatePreset && (
+        <CreatePresetModal
+          onSave={handleCreatePreset}
+          onClose={() => setShowCreatePreset(false)}
+        />
       )}
 
       {/* ── HISTORY ── */}
@@ -399,7 +456,7 @@ export default function Workouts() {
                         onClick={() => setHistoryExerciseFocus(ex.name)}
                         title="View progression chart and 1RM history"
                       >
-                        {ex.name} <span className="history-ex-name-hint">📈</span>
+                        {ex.name}
                       </p>
                       <div className="history-sets-table">
                         <div className="history-sets-header">
@@ -753,7 +810,7 @@ function LogSession({ session, onChange, onSave, onCancel, history = [] }) {
                   disabled={!ex.name.trim()}
                   title="View this exercise's history"
                 >
-                  📊 History
+                  History
                 </button>
                 {session.exercises.length > 1 && (
                   <button className="remove-ex-btn" onClick={() => removeExercise(ei)}>Remove</button>
@@ -936,6 +993,170 @@ function ExercisePicker({ onSelect, onClose }) {
         </div>
       </div>
     </div>
+  )
+}
+
+// ── Create Preset modal ──────────────────────────────────────
+const PRESET_COLORS = ['accent', 'blue', 'purple', 'orange', 'red']
+
+function CreatePresetModal({ onSave, onClose }) {
+  const [draft, setDraft] = useState({
+    label: '',
+    icon: '🎯',
+    tag: 'Custom',
+    color: 'accent',
+    description: '',
+    exercises: [],
+  })
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
+
+  function update(field, val) {
+    setDraft(d => ({ ...d, [field]: val }))
+  }
+
+  function addExercise(name) {
+    setDraft(d => ({ ...d, exercises: [...d.exercises, { name, sets: 3, reps: '4-8' }] }))
+    setPickerOpen(false)
+  }
+
+  function updateExercise(i, field, val) {
+    setDraft(d => {
+      const exercises = [...d.exercises]
+      exercises[i] = { ...exercises[i], [field]: val }
+      return { ...d, exercises }
+    })
+  }
+
+  function removeExercise(i) {
+    setDraft(d => ({ ...d, exercises: d.exercises.filter((_, idx) => idx !== i) }))
+  }
+
+  async function handleSave() {
+    if (!draft.label.trim() || draft.exercises.length === 0) return
+    setSaving(true)
+    await onSave({
+      label: draft.label.trim(),
+      icon: draft.icon.trim() || '🎯',
+      tag: draft.tag.trim() || 'Custom',
+      color: draft.color,
+      description: draft.description.trim(),
+      exercises: draft.exercises.map(ex => ({
+        name: ex.name,
+        sets: Math.max(1, parseInt(ex.sets) || 1),
+        reps: String(ex.reps || '').trim() || '4-8',
+      })),
+    })
+    setSaving(false)
+  }
+
+  return (
+    <>
+      {pickerOpen && (
+        <ExercisePicker onSelect={addExercise} onClose={() => setPickerOpen(false)} />
+      )}
+
+      <div className="picker-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+        <div className="picker-modal create-preset-modal">
+          <div className="picker-header">
+            <h2 className="picker-title">Create Preset</h2>
+            <button className="picker-close" onClick={onClose}>✕</button>
+          </div>
+
+          <div className="create-preset-body">
+            <div className="preset-row">
+              <input
+                className="log-ex-name-input"
+                placeholder="Preset name (e.g. My Push Day)"
+                value={draft.label}
+                onChange={e => update('label', e.target.value)}
+                autoFocus
+              />
+              <input
+                className="log-ex-name-input preset-icon-input"
+                placeholder="Icon"
+                maxLength={2}
+                value={draft.icon}
+                onChange={e => update('icon', e.target.value)}
+              />
+            </div>
+
+            <input
+              className="log-ex-name-input"
+              placeholder="Short description (optional)"
+              value={draft.description}
+              onChange={e => update('description', e.target.value)}
+            />
+
+            <div className="preset-row">
+              <input
+                className="log-ex-name-input"
+                placeholder="Tag (e.g. 30 min, Custom)"
+                value={draft.tag}
+                onChange={e => update('tag', e.target.value)}
+              />
+              <div className="preset-color-pills">
+                {PRESET_COLORS.map(c => (
+                  <button
+                    key={c}
+                    className={`preset-color preset-color--${c} ${draft.color === c ? 'preset-color--active' : ''}`}
+                    onClick={() => update('color', c)}
+                    title={c}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <p className="picker-group-label" style={{ padding: '8px 0 0', textAlign: 'left' }}>Exercises</p>
+
+            {draft.exercises.length === 0 && (
+              <p className="picker-empty" style={{ padding: '12px 0' }}>
+                No exercises yet — tap "+ Add Exercise" below.
+              </p>
+            )}
+
+            <div className="preset-exercise-list">
+              {draft.exercises.map((ex, i) => (
+                <div key={i} className="preset-exercise-row">
+                  <span className="preset-ex-name">{ex.name}</span>
+                  <input
+                    className="log-set-input preset-sets-input"
+                    type="number"
+                    min="1"
+                    value={ex.sets}
+                    onChange={e => updateExercise(i, 'sets', e.target.value)}
+                    title="Sets"
+                  />
+                  <input
+                    className="log-set-input preset-reps-input"
+                    value={ex.reps}
+                    onChange={e => updateExercise(i, 'reps', e.target.value)}
+                    placeholder="4-8"
+                    title="Reps or time"
+                  />
+                  <button className="remove-set-btn" onClick={() => removeExercise(i)}>×</button>
+                </div>
+              ))}
+            </div>
+
+            <button className="add-exercise-btn" onClick={() => setPickerOpen(true)}>
+              + Add Exercise
+            </button>
+          </div>
+
+          <div className="create-preset-actions">
+            <button className="btn-ghost" onClick={onClose} disabled={saving}>Cancel</button>
+            <button
+              className="btn-accent"
+              onClick={handleSave}
+              disabled={saving || !draft.label.trim() || draft.exercises.length === 0}
+            >
+              {saving ? 'Saving…' : 'Save Preset'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
   )
 }
 

@@ -18,7 +18,7 @@ function buildGreeting(name) {
     : "Hey! I'm your MyFitBud coach. What are we working on today?"
 }
 
-export default function Chat({ user }) {
+export default function Chat({ user, seed, onSeedConsumed }) {
   const username = user?.user_metadata?.username?.trim() || null
 
   const [messages, setMessages] = useState([{ role: 'assistant', text: buildGreeting(username) }])
@@ -26,6 +26,7 @@ export default function Chat({ user }) {
   const [loading, setLoading] = useState(false)
   const [context, setContext] = useState({ recentLogs: [], recentSessions: [], goals: {}, name: username })
   const bottomRef = useRef(null)
+  const sentSeedRef = useRef(null)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -39,6 +40,16 @@ export default function Chat({ user }) {
     })
     setContext(c => ({ ...c, name: username }))
   }, [username])
+
+  // Auto-send a seeded question (e.g. from the Form Check "Ask coach" button).
+  // Guarded by a ref so the same seed never sends twice — once consumed, parent clears it.
+  useEffect(() => {
+    if (!seed || sentSeedRef.current === seed) return
+    sentSeedRef.current = seed
+    sendMessage(seed)
+    onSeedConsumed?.()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seed])
 
   // Load fitness context once on mount so Groq sees real data
   useEffect(() => {

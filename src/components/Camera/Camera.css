@@ -417,6 +417,31 @@
 .feedback-item--good .feedback-icon { color: var(--accent); }
 .feedback-item--warn .feedback-icon { color: var(--orange); }
 
+.feedback-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.feedback-ask-btn {
+  flex-shrink: 0;
+  align-self: flex-start;
+  background: transparent;
+  border: 1px solid rgba(251, 146, 60, 0.4);
+  color: var(--orange);
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.12s;
+  white-space: nowrap;
+}
+
+.feedback-ask-btn:hover {
+  background: rgba(251, 146, 60, 0.12);
+  border-color: var(--orange);
+}
+
 .feedback-empty {
   font-size: 13px;
   color: var(--text-muted);

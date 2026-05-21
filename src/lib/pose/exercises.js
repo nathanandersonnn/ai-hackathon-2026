@@ -380,11 +380,332 @@ export function createBicepCurlTracker() {
   }
 }
 
+// ─── Overhead Press ───────────────────────────────────────────────────────────
+// Primary joint: elbow (shoulder–elbow–wrist bilateral average)
+// Start with hands at shoulders (elbow ~80°), press straight up to lockout (~170°), lower back down.
+// Phases mirror Bicep Curl: down → pressing → lowering → down [rep++]
+//   down       → pressing  when angle > 110°  (initiating press)
+//   pressing   → lowering  when angle > 160°  (locked out overhead)
+//   lowering   → down      when angle <  90°  (rep counts on return to shoulders)
+
+export function createOverheadPressTracker() {
+  let phase = 'down'
+  let reps = 0
+  let consecutive = 0
+  let currentRepData = emptyRepData()
+  const telemetryHistory = []
+
+  return {
+    label: 'Elbow',
+    update(landmarks) {
+      const angle = bilateralAngle(
+        landmarks,
+        [LANDMARK.LEFT_SHOULDER,  LANDMARK.LEFT_ELBOW,  LANDMARK.LEFT_WRIST],
+        [LANDMARK.RIGHT_SHOULDER, LANDMARK.RIGHT_ELBOW, LANDMARK.RIGHT_WRIST],
+      )
+      if (angle == null) { consecutive = 0; return { angle: null, reps, phase } }
+
+      if (phase !== 'down') {
+        if (allVisible(landmarks, [LANDMARK.LEFT_SHOULDER, LANDMARK.LEFT_ELBOW, LANDMARK.LEFT_WRIST,
+                                   LANDMARK.RIGHT_SHOULDER, LANDMARK.RIGHT_ELBOW, LANDMARK.RIGHT_WRIST])
+            && angle < currentRepData.minAngle) currentRepData.minAngle = angle
+        const lean = torsoLean(landmarks)
+        if (lean != null && lean > currentRepData.maxTorsoLean) currentRepData.maxTorsoLean = lean
+      }
+
+      const cond =
+        phase === 'down'     ? angle > 110 :
+        phase === 'pressing' ? angle > 160 :
+        phase === 'lowering' ? angle < 90  : false
+
+      if (cond) consecutive++; else consecutive = 0
+
+      if (consecutive >= MIN_CONFIRM) {
+        consecutive = 0
+        if (phase === 'down') {
+          phase = 'pressing'
+        } else if (phase === 'pressing') {
+          phase = 'lowering'
+        } else if (phase === 'lowering') {
+          phase = 'down'
+          reps++
+          commitRep(telemetryHistory, currentRepData)
+          currentRepData = emptyRepData()
+        }
+      }
+
+      return { angle, reps, phase }
+    },
+    getTelemetry() { return telemetryHistory.slice() },
+    reset() {
+      phase = 'down'; reps = 0; consecutive = 0
+      currentRepData = emptyRepData(); telemetryHistory.length = 0
+    },
+  }
+}
+
+// ─── Glute Bridge ─────────────────────────────────────────────────────────────
+// Primary joint: hip (shoulder–hip–knee bilateral average)
+// Lying with knees bent, hip starts flexed (~110°); drive up to extension (~170°); lower.
+// Phases: down → rising → peaked → down [rep++]
+//   down    → rising  when angle > 140°
+//   rising  → peaked  when angle > 165°
+//   peaked  → down    when angle < 130°  (rep counts on return)
+
+export function createGluteBridgeTracker() {
+  let phase = 'down'
+  let reps = 0
+  let consecutive = 0
+  let currentRepData = emptyRepData()
+  const telemetryHistory = []
+
+  return {
+    label: 'Hip',
+    update(landmarks) {
+      const angle = bilateralAngle(
+        landmarks,
+        [LANDMARK.LEFT_SHOULDER,  LANDMARK.LEFT_HIP,  LANDMARK.LEFT_KNEE],
+        [LANDMARK.RIGHT_SHOULDER, LANDMARK.RIGHT_HIP, LANDMARK.RIGHT_KNEE],
+      )
+      if (angle == null) { consecutive = 0; return { angle: null, reps, phase } }
+
+      if (phase !== 'down') {
+        if (allVisible(landmarks, [LANDMARK.LEFT_SHOULDER, LANDMARK.LEFT_HIP, LANDMARK.LEFT_KNEE,
+                                   LANDMARK.RIGHT_SHOULDER, LANDMARK.RIGHT_HIP, LANDMARK.RIGHT_KNEE])
+            && angle < currentRepData.minAngle) currentRepData.minAngle = angle
+        const lean = torsoLean(landmarks)
+        if (lean != null && lean > currentRepData.maxTorsoLean) currentRepData.maxTorsoLean = lean
+      }
+
+      const cond =
+        phase === 'down'   ? angle > 140 :
+        phase === 'rising' ? angle > 165 :
+        phase === 'peaked' ? angle < 130 : false
+
+      if (cond) consecutive++; else consecutive = 0
+
+      if (consecutive >= MIN_CONFIRM) {
+        consecutive = 0
+        if (phase === 'down') {
+          phase = 'rising'
+        } else if (phase === 'rising') {
+          phase = 'peaked'
+        } else if (phase === 'peaked') {
+          phase = 'down'
+          reps++
+          commitRep(telemetryHistory, currentRepData)
+          currentRepData = emptyRepData()
+        }
+      }
+
+      return { angle, reps, phase }
+    },
+    getTelemetry() { return telemetryHistory.slice() },
+    reset() {
+      phase = 'down'; reps = 0; consecutive = 0
+      currentRepData = emptyRepData(); telemetryHistory.length = 0
+    },
+  }
+}
+
+// ─── Sit-up ───────────────────────────────────────────────────────────────────
+// Primary joint: hip (shoulder–hip–knee bilateral average)
+// Lying flat (angle ~170°); crunch up so the torso closes toward the thighs (~80°); release.
+// Phases: down → curling → crunched → down [rep++]
+//   down     → curling   when angle < 140°
+//   curling  → crunched  when angle <  90°
+//   crunched → down      when angle > 150°  (rep counts on return)
+
+export function createSitupTracker() {
+  let phase = 'down'
+  let reps = 0
+  let consecutive = 0
+  let currentRepData = emptyRepData()
+  const telemetryHistory = []
+
+  return {
+    label: 'Hip',
+    update(landmarks) {
+      const angle = bilateralAngle(
+        landmarks,
+        [LANDMARK.LEFT_SHOULDER,  LANDMARK.LEFT_HIP,  LANDMARK.LEFT_KNEE],
+        [LANDMARK.RIGHT_SHOULDER, LANDMARK.RIGHT_HIP, LANDMARK.RIGHT_KNEE],
+      )
+      if (angle == null) { consecutive = 0; return { angle: null, reps, phase } }
+
+      if (phase !== 'down') {
+        if (allVisible(landmarks, [LANDMARK.LEFT_SHOULDER, LANDMARK.LEFT_HIP, LANDMARK.LEFT_KNEE,
+                                   LANDMARK.RIGHT_SHOULDER, LANDMARK.RIGHT_HIP, LANDMARK.RIGHT_KNEE])
+            && angle < currentRepData.minAngle) currentRepData.minAngle = angle
+      }
+
+      const cond =
+        phase === 'down'     ? angle < 140 :
+        phase === 'curling'  ? angle < 90  :
+        phase === 'crunched' ? angle > 150 : false
+
+      if (cond) consecutive++; else consecutive = 0
+
+      if (consecutive >= MIN_CONFIRM) {
+        consecutive = 0
+        if (phase === 'down') {
+          phase = 'curling'
+        } else if (phase === 'curling') {
+          phase = 'crunched'
+        } else if (phase === 'crunched') {
+          phase = 'down'
+          reps++
+          commitRep(telemetryHistory, currentRepData)
+          currentRepData = emptyRepData()
+        }
+      }
+
+      return { angle, reps, phase }
+    },
+    getTelemetry() { return telemetryHistory.slice() },
+    reset() {
+      phase = 'down'; reps = 0; consecutive = 0
+      currentRepData = emptyRepData(); telemetryHistory.length = 0
+    },
+  }
+}
+
+// ─── Lateral Raise ────────────────────────────────────────────────────────────
+// Primary joint: shoulder abduction (hip–shoulder–elbow bilateral average)
+// Arms at sides (~15°) raised laterally to horizontal (~90°), then lowered.
+// Phases: down → raising → topped → down [rep++]
+//   down    → raising  when angle > 45°
+//   raising → topped   when angle > 80°
+//   topped  → down     when angle < 25°  (rep counts on return)
+
+export function createLateralRaiseTracker() {
+  let phase = 'down'
+  let reps = 0
+  let consecutive = 0
+  let currentRepData = emptyRepData()
+  const telemetryHistory = []
+
+  return {
+    label: 'Shoulder',
+    update(landmarks) {
+      const angle = bilateralAngle(
+        landmarks,
+        [LANDMARK.LEFT_HIP,  LANDMARK.LEFT_SHOULDER,  LANDMARK.LEFT_ELBOW],
+        [LANDMARK.RIGHT_HIP, LANDMARK.RIGHT_SHOULDER, LANDMARK.RIGHT_ELBOW],
+      )
+      if (angle == null) { consecutive = 0; return { angle: null, reps, phase } }
+
+      if (phase !== 'down') {
+        if (allVisible(landmarks, [LANDMARK.LEFT_HIP, LANDMARK.LEFT_SHOULDER, LANDMARK.LEFT_ELBOW,
+                                   LANDMARK.RIGHT_HIP, LANDMARK.RIGHT_SHOULDER, LANDMARK.RIGHT_ELBOW])
+            && angle < currentRepData.minAngle) currentRepData.minAngle = angle
+        const lean = torsoLean(landmarks)
+        if (lean != null && lean > currentRepData.maxTorsoLean) currentRepData.maxTorsoLean = lean
+      }
+
+      const cond =
+        phase === 'down'    ? angle > 45 :
+        phase === 'raising' ? angle > 80 :
+        phase === 'topped'  ? angle < 25 : false
+
+      if (cond) consecutive++; else consecutive = 0
+
+      if (consecutive >= MIN_CONFIRM) {
+        consecutive = 0
+        if (phase === 'down') {
+          phase = 'raising'
+        } else if (phase === 'raising') {
+          phase = 'topped'
+        } else if (phase === 'topped') {
+          phase = 'down'
+          reps++
+          commitRep(telemetryHistory, currentRepData)
+          currentRepData = emptyRepData()
+        }
+      }
+
+      return { angle, reps, phase }
+    },
+    getTelemetry() { return telemetryHistory.slice() },
+    reset() {
+      phase = 'down'; reps = 0; consecutive = 0
+      currentRepData = emptyRepData(); telemetryHistory.length = 0
+    },
+  }
+}
+
+// ─── Tricep Extension (overhead) ──────────────────────────────────────────────
+// Primary joint: elbow (shoulder–elbow–wrist bilateral average)
+// Hands overhead with elbows bent (~70°), extend straight up (~170°), return.
+// Phase pattern matches Overhead Press but cued for the overhead-tricep movement.
+//   down       → extending  when angle > 110°
+//   extending  → topped     when angle > 160°
+//   topped     → down       when angle <  80°  (rep counts on return)
+
+export function createTricepExtensionTracker() {
+  let phase = 'down'
+  let reps = 0
+  let consecutive = 0
+  let currentRepData = emptyRepData()
+  const telemetryHistory = []
+
+  return {
+    label: 'Elbow',
+    update(landmarks) {
+      const angle = bilateralAngle(
+        landmarks,
+        [LANDMARK.LEFT_SHOULDER,  LANDMARK.LEFT_ELBOW,  LANDMARK.LEFT_WRIST],
+        [LANDMARK.RIGHT_SHOULDER, LANDMARK.RIGHT_ELBOW, LANDMARK.RIGHT_WRIST],
+      )
+      if (angle == null) { consecutive = 0; return { angle: null, reps, phase } }
+
+      if (phase !== 'down') {
+        if (allVisible(landmarks, [LANDMARK.LEFT_SHOULDER, LANDMARK.LEFT_ELBOW, LANDMARK.LEFT_WRIST,
+                                   LANDMARK.RIGHT_SHOULDER, LANDMARK.RIGHT_ELBOW, LANDMARK.RIGHT_WRIST])
+            && angle < currentRepData.minAngle) currentRepData.minAngle = angle
+      }
+
+      const cond =
+        phase === 'down'      ? angle > 110 :
+        phase === 'extending' ? angle > 160 :
+        phase === 'topped'    ? angle < 80  : false
+
+      if (cond) consecutive++; else consecutive = 0
+
+      if (consecutive >= MIN_CONFIRM) {
+        consecutive = 0
+        if (phase === 'down') {
+          phase = 'extending'
+        } else if (phase === 'extending') {
+          phase = 'topped'
+        } else if (phase === 'topped') {
+          phase = 'down'
+          reps++
+          commitRep(telemetryHistory, currentRepData)
+          currentRepData = emptyRepData()
+        }
+      }
+
+      return { angle, reps, phase }
+    },
+    getTelemetry() { return telemetryHistory.slice() },
+    reset() {
+      phase = 'down'; reps = 0; consecutive = 0
+      currentRepData = emptyRepData(); telemetryHistory.length = 0
+    },
+  }
+}
+
 export function createTracker(exercise) {
-  if (exercise === 'Squat')      return createSquatTracker()
-  if (exercise === 'Push-up')    return createPushupTracker()
-  if (exercise === 'Deadlift')   return createDeadliftTracker()
-  if (exercise === 'Lunge')      return createLungeTracker()
-  if (exercise === 'Bicep Curl') return createBicepCurlTracker()
+  if (exercise === 'Squat')             return createSquatTracker()
+  if (exercise === 'Push-up')           return createPushupTracker()
+  if (exercise === 'Deadlift')          return createDeadliftTracker()
+  if (exercise === 'Lunge')             return createLungeTracker()
+  if (exercise === 'Bicep Curl')        return createBicepCurlTracker()
+  if (exercise === 'Overhead Press')    return createOverheadPressTracker()
+  if (exercise === 'Glute Bridge')      return createGluteBridgeTracker()
+  if (exercise === 'Sit-up')            return createSitupTracker()
+  if (exercise === 'Lateral Raise')     return createLateralRaiseTracker()
+  if (exercise === 'Tricep Extension')  return createTricepExtensionTracker()
   return null
 }

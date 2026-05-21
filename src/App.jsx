@@ -29,6 +29,7 @@ const VIEWS = {
 export default function App() {
   const [activeView, setActiveView] = useState('dashboard')
   const [user, setUser] = useState(null)
+  const [chatSeed, setChatSeed] = useState(null)  // optional pre-filled message for Chat
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user ?? null))
@@ -47,18 +48,25 @@ export default function App() {
     setActiveView('dashboard')
   }
 
+  // navigate(view) or navigate(view, { chatSeed }) — used to deep-link into Chat with a question
+  function handleNavigate(view, opts = {}) {
+    if (typeof opts.chatSeed === 'string') setChatSeed(opts.chatSeed)
+    setActiveView(view)
+  }
+
   const ActiveView = VIEWS[activeView]
   const viewProps =
     activeView === 'auth' ? { onSignedIn: handleSignedIn } :
-    activeView === 'chat' ? { user } :
-    activeView === 'dashboard' ? { user, onSignOut: handleSignOut, onNavigate: setActiveView } :
+    activeView === 'chat' ? { user, seed: chatSeed, onSeedConsumed: () => setChatSeed(null) } :
+    activeView === 'dashboard' ? { user, onSignOut: handleSignOut, onNavigate: handleNavigate } :
+    activeView === 'camera' ? { onNavigate: handleNavigate } :
     {}
 
   return (
     <div className="app-shell">
       <Sidebar
         active={activeView}
-        onNavigate={setActiveView}
+        onNavigate={handleNavigate}
         user={user}
         onSignOut={handleSignOut}
       />

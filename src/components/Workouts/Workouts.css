@@ -39,6 +39,46 @@
   gap: 10px;
 }
 
+.create-preset-btn {
+  background: var(--bg-card);
+  border: 1px dashed var(--border-light);
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  font-size: 13.5px;
+  font-weight: 500;
+  padding: 14px;
+  width: 100%;
+  transition: all 0.15s;
+  cursor: pointer;
+}
+.create-preset-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.workout-card-header-row {
+  display: flex;
+  align-items: stretch;
+}
+.workout-card-header-row .workout-card-header { flex: 1; }
+
+.workout-delete-btn {
+  margin-right: 12px;
+  align-self: center;
+}
+
+.workout-custom-badge {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+
 .workout-card {
   background: var(--bg-card);
   border: 1px solid var(--border);
@@ -925,6 +965,98 @@
   padding-left: 4px;
 }
 
+/* ── Create Preset modal ── */
+.create-preset-modal { max-width: 560px; }
+
+.create-preset-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.preset-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.preset-icon-input {
+  flex: 0 0 64px;
+  text-align: center;
+}
+
+.preset-color-pills {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.preset-color {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.12s, border-color 0.12s;
+}
+.preset-color:hover { transform: scale(1.1); }
+
+.preset-color--accent { background: var(--accent); }
+.preset-color--blue   { background: var(--blue); }
+.preset-color--purple { background: var(--purple); }
+.preset-color--orange { background: var(--orange); }
+.preset-color--red    { background: var(--red); }
+
+.preset-color--active { border-color: var(--text-primary); }
+
+.preset-exercise-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.preset-exercise-row {
+  display: grid;
+  grid-template-columns: 1fr 64px 1fr 28px;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 8px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.preset-ex-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.preset-sets-input,
+.preset-reps-input {
+  text-align: center;
+}
+
+.create-preset-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+}
+.create-preset-actions .btn-ghost,
+.create-preset-actions .btn-accent {
+  min-width: 120px;
+}
+
 /* ── Editable history card body ── */
 .history-body--edit {
   background: var(--bg-base);
@@ -945,7 +1077,6 @@
   gap: 6px;
 }
 .history-ex-name.history-ex-name--clickable:hover { color: var(--accent); }
-.history-ex-name-hint { font-size: 11px; opacity: 0.7; }
 
 /* ──────────────────────────────────────────────────────────────
    Mobile
