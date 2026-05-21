@@ -510,6 +510,7 @@ function LogSession({ session, onChange, onSave, onCancel, history = [] }) {
                   <span>Reps</span>
                   <span>Weight (lbs)</span>
                   <span />
+                  <span />
                 </div>
                 {ex.sets.map((s, si) => (
                   <div key={si} className="log-set-row">

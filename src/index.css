@@ -78,3 +78,49 @@ a {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted);
 }
+
+/* ──────────────────────────────────────────────────────────────
+   Mobile primitives
+   ────────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  html, body, #root {
+    font-size: 15px;
+  }
+
+  /* Cap form input + button widths so they don't stretch on tablet/desktop
+     mid-breakpoints, but still fill very small phones. */
+  input:not([type='checkbox']):not([type='radio']):not([type='range']),
+  textarea,
+  select,
+  button:not(.nav-item):not(.water-btn):not(.date-arrow):not(.rest-ctrl-btn):not(.remove-set-btn):not(.remove-btn):not(.rest-set-btn):not(.history-delete-btn):not(.picker-close):not(.exercise-pill):not(.muscle-pill):not(.workouts-tab):not(.workout-card-header):not(.history-card-header):not(.picker-exercise-row):not(.toggle-btn) {
+    max-width: 480px;
+  }
+
+  /* Ensure all interactive targets meet the 44px minimum recommended
+     touch size — keep visual padding small but hit area generous. */
+  button,
+  [role='button'],
+  input[type='checkbox'],
+  input[type='radio'] {
+    min-height: 36px;
+  }
+}
+
+/* iOS prevents zoom on input focus only when font-size >= 16px. Use
+   higher specificity than the .foo-input class selectors throughout. */
+@media (max-width: 768px) {
+  input.cal-input,
+  input.food-text-input,
+  input.log-set-input,
+  input.log-ex-name-input,
+  input.log-title-input,
+  input.weight-input,
+  input.picker-search,
+  input.custom-name-input,
+  input.rest-timer-config-input,
+  textarea,
+  select.cal-select,
+  input:not([class]) {
+    font-size: 16px;
+  }
+}

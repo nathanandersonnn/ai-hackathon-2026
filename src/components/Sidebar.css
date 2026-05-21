@@ -144,3 +144,81 @@
 }
 
 .user-signout:hover { color: var(--red); }
+
+/* ──────────────────────────────────────────────────────────────
+   Mobile: convert sidebar to bottom nav
+   ────────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    min-width: 0;
+    height: auto;
+    flex-direction: row;
+    align-items: stretch;
+    gap: 0;
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+    border-right: none;
+    border-top: 1px solid var(--border);
+    background: rgba(17, 17, 24, 0.96);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    z-index: 50;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+  }
+
+  .sidebar::-webkit-scrollbar { display: none; }
+
+  /* Logo + user-card don't belong in a bottom bar */
+  .sidebar-logo,
+  .sidebar-user {
+    display: none;
+  }
+
+  .sidebar-nav {
+    flex-direction: row;
+    flex: 1;
+    gap: 0;
+    min-width: 0;
+  }
+
+  .nav-item,
+  .about-nav-item {
+    flex: 1 1 0;
+    min-width: 64px;
+    flex-direction: column;
+    gap: 3px;
+    padding: 6px 4px;
+    font-size: 10.5px;
+    line-height: 1.1;
+    text-align: center;
+    border-radius: 8px;
+    margin: 0;
+  }
+
+  .nav-item svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .nav-item span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+
+  .about-nav-item {
+    margin-bottom: 0;
+  }
+
+  /* Active state: drop the border so items line up evenly */
+  .nav-item--active {
+    border: none;
+  }
+}

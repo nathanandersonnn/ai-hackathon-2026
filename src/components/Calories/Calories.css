@@ -904,3 +904,90 @@
   color: var(--text-muted);
   font-size: 11.5px;
 }
+
+/* ──────────────────────────────────────────────────────────────
+   Mobile
+   ────────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .calories-view {
+    padding: 18px 16px;
+  }
+
+  .calories-view .page-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  /* Date nav: wrap "Today" button below on tight widths */
+  .date-nav {
+    padding: 10px 12px;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .date-today-btn { margin-left: auto; }
+
+  /* Two-column → single column */
+  .calories-layout {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .cal-card { padding: 16px; }
+
+  /* Profile grid — keep 2 cols but tighten gap */
+  .profile-grid { gap: 10px; }
+
+  /* Quick-add micro grid: 3 cols is too tight, drop to 2 */
+  .qa-micro-grid { grid-template-columns: 1fr 1fr; }
+
+  /* BMR results: stack the two stats vertically */
+  .bmr-results { flex-direction: column; gap: 14px; }
+  .bmr-divider { width: 100%; height: 1px; margin: 0; }
+
+  /* Food log table — P/C/F columns don't fit. Hide per-row macros on
+     phones since the daily totals are already shown above. */
+  .food-log-header,
+  .food-log-row {
+    grid-template-columns: 1fr 64px 28px;
+    gap: 6px;
+  }
+  .food-log-header span:nth-child(3),
+  .food-log-header span:nth-child(4),
+  .food-log-header span:nth-child(5),
+  .food-log-row .food-log-macro {
+    display: none;
+  }
+  .food-log-row { padding: 10px; }
+
+  /* Cap form input + button widths on the goal-edit / quick-add forms.
+     Without this the right column inputs expand to the full container. */
+  .cal-input,
+  .food-text-input,
+  .cal-select,
+  .log-title-input {
+    max-width: 480px;
+  }
+
+  .food-text-row { flex-wrap: wrap; }
+  .food-text-input { min-width: 0; flex: 1 1 200px; }
+  .add-btn { min-width: 80px; }
+
+  /* Photo drop zone: full-width tap target */
+  .photo-drop { min-height: 180px; }
+  .photo-actions { flex-direction: column-reverse; }
+  .photo-actions .btn-ghost,
+  .photo-actions .btn-accent {
+    width: 100%;
+    max-width: 480px;
+  }
+}
+
+/* Very small phones (<380px) — the food-log "Item" column gets cramped */
+@media (max-width: 380px) {
+  .food-log-header,
+  .food-log-row {
+    grid-template-columns: 1fr 54px 24px;
+  }
+  .food-log-name { font-size: 12.5px; }
+}

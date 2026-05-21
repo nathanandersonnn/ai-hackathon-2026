@@ -80,7 +80,6 @@ export default function Dashboard() {
   const stats = {
     workouts: workoutsThisWeek,
     streak:   calcWorkoutStreak(sessions),
-    avgScore: null, // populated once form-check API stores scores
     steps:    todayLog?.steps ?? '—',
     weight:   logs.find(l => l.weight)?.weight ?? '—',
   }
@@ -97,8 +96,7 @@ export default function Dashboard() {
       <div className="stats-row">
         <StatCard label="Workouts this week" value={stats.workouts}        unit="this week" color="accent" />
         <StatCard label="Workout streak"      value={stats.streak}          unit={stats.streak === 1 ? 'day' : 'days'} color="blue" />
-        <StatCard label="Avg form score"      value={stats.avgScore ?? '—'} unit="/ 100"     color="purple" />
-        <StatCard label="Today's steps"       value={typeof stats.steps === 'number' ? stats.steps.toLocaleString() : stats.steps} unit="steps" color="orange" />
+<StatCard label="Today's steps"       value={typeof stats.steps === 'number' ? stats.steps.toLocaleString() : stats.steps} unit="steps" color="orange" />
         <StatCard label="Weight"              value={stats.weight}          unit="lbs"       color="red" />
       </div>
 

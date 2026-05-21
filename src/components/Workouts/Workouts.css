@@ -72,6 +72,7 @@
   align-items: center;
   gap: 14px;
   min-width: 0;
+  flex: 1;
 }
 
 .workout-icon { font-size: 22px; flex-shrink: 0; width: 32px; text-align: center; }
@@ -80,6 +81,7 @@
   display: flex;
   flex-direction: column;
   gap: 3px;
+  flex: 1;
 }
 
 .workout-label {
@@ -87,9 +89,10 @@
   font-weight: 600;
   color: var(--text-primary);
   font-family: var(--font-display);
+  text-align: center;
 }
 
-.workout-desc { font-size: 12px; color: var(--text-muted); }
+.workout-desc { font-size: 12px; color: var(--text-muted); text-align: center; }
 
 .workout-card-right {
   display: flex;
@@ -145,7 +148,9 @@
   text-transform: uppercase;
   letter-spacing: 0.5px;
   border-bottom: 1px solid var(--border);
+  text-align: center;
 }
+.ex-table-header span:first-child { text-align: left; }
 
 .ex-row {
   display: grid;
@@ -160,8 +165,8 @@
 .ex-row:hover { background: var(--bg-elevated); }
 
 .ex-name  { color: var(--text-primary); font-weight: 500; }
-.ex-sets  { color: var(--text-secondary); }
-.ex-reps  { color: var(--text-secondary); }
+.ex-sets  { color: var(--text-secondary); text-align: center; }
+.ex-reps  { color: var(--text-secondary); text-align: center; }
 
 .workout-actions { display: flex; gap: 10px; }
 
@@ -387,7 +392,8 @@
 
 .log-sets-header {
   display: grid;
-  grid-template-columns: 36px 1fr 1fr 28px;
+  grid-template-columns: 40px 1fr 1fr 32px 28px;
+  gap: 8px;
   padding: 7px 12px;
   background: var(--bg-elevated);
   font-size: 10px;
@@ -396,15 +402,17 @@
   text-transform: uppercase;
   letter-spacing: 0.4px;
   border-bottom: 1px solid var(--border);
+  text-align: center;
 }
 
 .log-set-row {
   display: grid;
-  grid-template-columns: 36px 1fr 1fr 28px;
+  grid-template-columns: 40px 1fr 1fr 32px 28px;
   align-items: center;
   padding: 6px 12px;
   border-bottom: 1px solid var(--border);
   gap: 8px;
+  text-align: center;
 }
 
 .log-set-row:last-child { border-bottom: none; }
@@ -413,6 +421,7 @@
   font-size: 12px;
   color: var(--text-muted);
   font-weight: 600;
+  text-align: center;
 }
 
 .log-set-input {
@@ -786,4 +795,101 @@
 .rest-ctrl-btn {
   padding: 5px 10px !important;
   font-size: 14px !important;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Mobile
+   ────────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .workouts-view {
+    padding: 18px 16px;
+  }
+
+  /* Header: stack title + "Log Workout" button */
+  .workouts-view .page-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .workouts-view .page-header .btn-accent {
+    width: 100%;
+    max-width: 480px;
+    padding: 12px 20px;
+  }
+
+  /* Tabs: scroll horizontally rather than wrap */
+  .workouts-tabs {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .workouts-tabs::-webkit-scrollbar { display: none; }
+
+  /* Browse cards */
+  .workout-card-header {
+    padding: 14px;
+    gap: 10px;
+  }
+  .workout-card-left { gap: 10px; }
+  .workout-icon { font-size: 20px; width: 26px; }
+  .workout-label { font-size: 14px; text-align: left; }
+  .workout-desc { font-size: 11.5px; text-align: left; }
+  .workout-card-right { gap: 8px; }
+  .workout-body { padding: 14px; }
+
+  /* History */
+  .history-card-header {
+    padding: 14px;
+    gap: 10px;
+  }
+  .history-card-right { gap: 6px; }
+  .repeat-btn { padding: 6px 10px; }
+
+  /* Log Session — tighten so the 5-col grid fits */
+  .log-exercise-card { padding: 14px; }
+  .log-ex-header { flex-wrap: wrap; gap: 8px; }
+  .remove-ex-btn { padding: 6px 10px; font-size: 11.5px; }
+
+  .log-sets-header,
+  .log-set-row {
+    grid-template-columns: 28px 1fr 1fr 28px 24px;
+    gap: 6px;
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+  .log-set-input {
+    padding: 8px 6px;
+  }
+
+  /* Session save bar — anchor + cap widths */
+  .log-session-actions {
+    justify-content: stretch;
+    gap: 8px;
+  }
+  .log-session-actions .btn-ghost,
+  .log-session-actions .btn-accent {
+    flex: 1;
+    max-width: 240px;
+  }
+
+  /* Rest-timer bar wraps on tiny screens */
+  .rest-timer-bar { flex-wrap: wrap; }
+  .rest-timer-track { min-width: 100%; order: 3; }
+
+  /* Exercise picker modal: go full-screen */
+  .picker-overlay {
+    padding: 0;
+    align-items: stretch;
+    justify-content: stretch;
+  }
+  .picker-modal {
+    max-width: 100%;
+    max-height: 100%;
+    height: 100%;
+    border-radius: 0;
+    border: none;
+  }
+  .picker-header { padding: 16px; }
+  .picker-search-wrap { padding: 12px 14px; }
+  .custom-input-row { flex-wrap: wrap; }
+  .custom-name-input { min-width: 0; }
 }

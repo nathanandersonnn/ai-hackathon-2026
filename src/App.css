@@ -9,3 +9,14 @@
   overflow-y: auto;
   background: var(--bg-base);
 }
+
+@media (max-width: 768px) {
+  .app-shell {
+    flex-direction: column;
+  }
+  /* Sidebar is fixed-bottom on mobile; reserve space below content so
+     nothing sits behind it. Includes safe-area for iOS home indicator. */
+  .app-main {
+    padding-bottom: calc(68px + env(safe-area-inset-bottom));
+  }
+}

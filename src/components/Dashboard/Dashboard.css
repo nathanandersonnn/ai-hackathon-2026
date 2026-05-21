@@ -12,7 +12,7 @@
 
 .page-title {
   font-family: var(--font-display);
-  font-size: 24px;
+  font-size: clamp(22px, 5.5vw, 28px);
   font-weight: 700;
   color: var(--text-primary);
   letter-spacing: -0.5px;
@@ -70,7 +70,7 @@
 
 .stat-value {
   font-family: var(--font-display);
-  font-size: 30px;
+  font-size: clamp(22px, 6vw, 30px);
   font-weight: 700;
   color: var(--text-primary);
   line-height: 1;
@@ -255,4 +255,44 @@
 
 .btn-accent:hover {
   opacity: 0.88;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Mobile
+   ────────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .dashboard {
+    padding: 18px 16px;
+  }
+
+  .page-header {
+    margin-bottom: 18px;
+  }
+
+  /* 2x2 stat grid on phones */
+  .stats-row {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .stat-card {
+    padding: 14px;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .steps-card,
+  .sessions-card,
+  .coach-card,
+  .weight-chart-card {
+    grid-column: 1 / -1;
+  }
+
+  .card {
+    padding: 18px;
+  }
 }
