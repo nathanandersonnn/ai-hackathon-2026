@@ -1,4 +1,5 @@
 import { lookupUSDA } from './usdaLookup'
+import { searchFood } from './openFoodFacts'
 
 const OLLAMA_URL = 'http://localhost:11434/api/generate'
 const MODEL = 'llava'
@@ -111,7 +112,11 @@ export function useFoodScanner() {
     const usda = await lookupUSDA(cleanedName, amount, unit)
     if (usda) return { ...usda, source: 'text' }
 
-    // Fallback — LLaVA estimates nutrition directly
+    // Step 4 — Open Food Facts fallback (2.8 M products, no API key needed)
+    const off = await searchFood(cleanedName)
+    if (off) return { ...off, source: 'text' }
+
+    // Step 5 — LLaVA estimates nutrition directly
     try {
       const fallback = await ollamaRequest({ prompt: TEXT_NUTRITION_PROMPT(description) })
       return { ...parseJSON(fallback.response), source: 'text' }

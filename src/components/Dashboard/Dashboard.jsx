@@ -5,6 +5,31 @@ import './Dashboard.css'
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
+// Count the current consecutive-days-with-a-workout streak.
+// If today has no session yet the streak is still alive (they just haven't
+// gone yet), so we start counting from yesterday in that case.
+function calcWorkoutStreak(sessions) {
+  if (sessions.length === 0) return 0
+
+  const sessionDates = new Set(sessions.map(s => s.date))
+  const todayIso = new Date().toISOString().slice(0, 10)
+
+  const cursor = new Date()
+  if (!sessionDates.has(todayIso)) {
+    // today not done yet — start from yesterday so streak stays alive
+    cursor.setDate(cursor.getDate() - 1)
+  }
+
+  let streak = 0
+  while (true) {
+    const iso = cursor.toISOString().slice(0, 10)
+    if (!sessionDates.has(iso)) break
+    streak++
+    cursor.setDate(cursor.getDate() - 1)
+  }
+  return streak
+}
+
 // Build a Mon→Sun array for the current week from raw daily_logs.
 function buildWeeklyData(logs, sessions) {
   const today = new Date()
@@ -36,7 +61,7 @@ export default function Dashboard() {
   const [loading, setLoading]   = useState(true)
 
   useEffect(() => {
-    Promise.all([getDailyLogs(30), getWorkoutSessions(20)])
+    Promise.all([getDailyLogs(30), getWorkoutSessions(90)])
       .then(([l, s]) => { setLogs(l); setSessions(s) })
       .catch(err => console.error('Dashboard load failed:', err))
       .finally(() => setLoading(false))
@@ -54,6 +79,7 @@ export default function Dashboard() {
 
   const stats = {
     workouts: workoutsThisWeek,
+    streak:   calcWorkoutStreak(sessions),
     avgScore: null, // populated once form-check API stores scores
     steps:    todayLog?.steps ?? '—',
     weight:   logs.find(l => l.weight)?.weight ?? '—',
@@ -70,9 +96,10 @@ export default function Dashboard() {
 
       <div className="stats-row">
         <StatCard label="Workouts this week" value={stats.workouts}        unit="this week" color="accent" />
-        <StatCard label="Avg form score"      value={stats.avgScore ?? '—'} unit="/ 100"     color="blue" />
-        <StatCard label="Today's steps"       value={typeof stats.steps === 'number' ? stats.steps.toLocaleString() : stats.steps} unit="steps" color="purple" />
-        <StatCard label="Weight"              value={stats.weight}          unit="lbs"       color="orange" />
+        <StatCard label="Workout streak"      value={stats.streak}          unit={stats.streak === 1 ? 'day' : 'days'} color="blue" />
+        <StatCard label="Avg form score"      value={stats.avgScore ?? '—'} unit="/ 100"     color="purple" />
+        <StatCard label="Today's steps"       value={typeof stats.steps === 'number' ? stats.steps.toLocaleString() : stats.steps} unit="steps" color="orange" />
+        <StatCard label="Weight"              value={stats.weight}          unit="lbs"       color="red" />
       </div>
 
       <div className="dashboard-grid">

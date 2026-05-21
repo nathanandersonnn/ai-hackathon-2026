@@ -11,6 +11,7 @@ export default function Camera() {
   const [exercise, setExercise] = useState('Squat')
   const [repCount, setRepCount] = useState(0)
   const [formScore, setFormScore] = useState(null)
+  const [deductions, setDeductions] = useState([])
   const [cameraError, setCameraError] = useState(null)
 
   const [liveAngle, setLiveAngle] = useState(null)
@@ -236,6 +237,7 @@ export default function Camera() {
         if (abort.signal.aborted) return
         setFormScore(result.formScore)
         setFeedback(result.feedback ?? [])
+        setDeductions(result.deductionsApplied ?? [])
       } catch (err) {
         if (abort.signal.aborted) return
         console.error('[Camera] analyzeSet failed', err)
@@ -266,6 +268,7 @@ export default function Camera() {
       setHandsUp({ left: false, right: false })
       setFormScore(null)
       setFeedback([])
+      setDeductions([])
       setActive(true)
     }
   }
@@ -441,6 +444,22 @@ export default function Camera() {
               <p className="feedback-empty">Start a session to see real-time form feedback here.</p>
             )}
           </div>
+
+          {deductions.length > 0 && (
+            <div className="deductions-list">
+              <p className="panel-title" style={{ marginTop: 16, marginBottom: 6, fontSize: 13, opacity: 0.7 }}>
+                Deductions
+              </p>
+              {deductions.map((d, i) => (
+                <div key={i} className="feedback-item feedback-item--warn" style={{ opacity: 0.8 }}>
+                  <span className="feedback-icon" style={{ fontWeight: 700, fontSize: 11, minWidth: 52 }}>
+                    −{d.pointsDeducted}pts
+                  </span>
+                  <span style={{ fontSize: 13 }}>{d.reason}</span>
+                </div>
+              ))}
+            </div>
+          )}
 
           {formScore !== null && (
             <div className="post-session">
