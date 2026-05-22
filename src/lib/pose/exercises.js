@@ -634,68 +634,6 @@ export function createLateralRaiseTracker() {
   }
 }
 
-// ─── Tricep Extension (overhead) ──────────────────────────────────────────────
-// Primary joint: elbow (shoulder–elbow–wrist bilateral average)
-// Hands overhead with elbows bent (~70°), extend straight up (~170°), return.
-// Phase pattern matches Overhead Press but cued for the overhead-tricep movement.
-//   down       → extending  when angle > 110°
-//   extending  → topped     when angle > 160°
-//   topped     → down       when angle <  80°  (rep counts on return)
-
-export function createTricepExtensionTracker() {
-  let phase = 'down'
-  let reps = 0
-  let consecutive = 0
-  let currentRepData = emptyRepData()
-  const telemetryHistory = []
-
-  return {
-    label: 'Elbow',
-    update(landmarks) {
-      const angle = bilateralAngle(
-        landmarks,
-        [LANDMARK.LEFT_SHOULDER,  LANDMARK.LEFT_ELBOW,  LANDMARK.LEFT_WRIST],
-        [LANDMARK.RIGHT_SHOULDER, LANDMARK.RIGHT_ELBOW, LANDMARK.RIGHT_WRIST],
-      )
-      if (angle == null) { consecutive = 0; return { angle: null, reps, phase } }
-
-      if (phase !== 'down') {
-        if (allVisible(landmarks, [LANDMARK.LEFT_SHOULDER, LANDMARK.LEFT_ELBOW, LANDMARK.LEFT_WRIST,
-                                   LANDMARK.RIGHT_SHOULDER, LANDMARK.RIGHT_ELBOW, LANDMARK.RIGHT_WRIST])
-            && angle < currentRepData.minAngle) currentRepData.minAngle = angle
-      }
-
-      const cond =
-        phase === 'down'      ? angle > 110 :
-        phase === 'extending' ? angle > 160 :
-        phase === 'topped'    ? angle < 80  : false
-
-      if (cond) consecutive++; else consecutive = 0
-
-      if (consecutive >= MIN_CONFIRM) {
-        consecutive = 0
-        if (phase === 'down') {
-          phase = 'extending'
-        } else if (phase === 'extending') {
-          phase = 'topped'
-        } else if (phase === 'topped') {
-          phase = 'down'
-          reps++
-          commitRep(telemetryHistory, currentRepData)
-          currentRepData = emptyRepData()
-        }
-      }
-
-      return { angle, reps, phase }
-    },
-    getTelemetry() { return telemetryHistory.slice() },
-    reset() {
-      phase = 'down'; reps = 0; consecutive = 0
-      currentRepData = emptyRepData(); telemetryHistory.length = 0
-    },
-  }
-}
-
 export function createTracker(exercise) {
   if (exercise === 'Squat')             return createSquatTracker()
   if (exercise === 'Push-up')           return createPushupTracker()
@@ -706,6 +644,5 @@ export function createTracker(exercise) {
   if (exercise === 'Glute Bridge')      return createGluteBridgeTracker()
   if (exercise === 'Sit-up')            return createSitupTracker()
   if (exercise === 'Lateral Raise')     return createLateralRaiseTracker()
-  if (exercise === 'Tricep Extension')  return createTricepExtensionTracker()
   return null
 }

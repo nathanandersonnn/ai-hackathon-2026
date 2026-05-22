@@ -14,7 +14,6 @@ const EXERCISES = [
   'Lateral Raise',
   'Glute Bridge',
   'Sit-up',
-  'Tricep Extension',
 ]
 
 export default function Camera({ onNavigate }) {
