@@ -128,6 +128,22 @@ const WORKOUT_TEMPLATES = [
 const emptySet = () => ({ reps: '', weight: '' })
 const emptyExercise = () => ({ name: '', sets: [emptySet()] })
 
+// Find the most recent set the user logged for this exercise. `history` is
+// already newest-first, so the first match wins. Used to seed defaults when
+// the user adds an exercise or set, so the form starts from their last effort.
+function lastSetForExercise(name, history) {
+  if (!name?.trim()) return null
+  const target = name.toLowerCase().trim()
+  for (const session of history) {
+    const ex = session.exercises?.find(e => e.name.toLowerCase().trim() === target)
+    if (ex?.sets?.length) {
+      const last = ex.sets[ex.sets.length - 1]
+      return { reps: String(last.reps ?? ''), weight: String(last.weight ?? '') }
+    }
+  }
+  return null
+}
+
 function formatHistoryDate(isoDate) {
   if (!isoDate) return ''
   const d = new Date(isoDate + 'T00:00:00')
@@ -142,6 +158,53 @@ function templateToLogSession(template) {
       sets: Array.from({ length: ex.sets }, () => emptySet()),
     })),
   }
+}
+
+// Active exercises in their original input order, then completed ones ordered
+// by when the user marked them done. Same sort used for both the live display
+// and saveSession so the saved row mirrors the on-screen flow.
+// Reps/weight input that shows the saved value as a faint placeholder and
+// starts empty on focus — so the user reads the old value then types fresh.
+// If they don't type anything, the original value stays put (no data loss).
+function SetCellInput({ value, disabled, onCommit }) {
+  const [draft, setDraft] = useState('')
+  const [editing, setEditing] = useState(false)
+  const stored = value === '' || value == null ? '' : String(value)
+
+  function commit() {
+    if (draft !== '' && draft !== stored) onCommit(draft)
+    setDraft('')
+    setEditing(false)
+  }
+
+  return (
+    <input
+      className="log-set-input"
+      type="number"
+      placeholder={stored || '—'}
+      value={editing ? draft : ''}
+      onChange={e => setDraft(e.target.value)}
+      onFocus={() => { setDraft(''); setEditing(true) }}
+      onBlur={commit}
+      onKeyDown={e => { if (e.key === 'Enter') e.target.blur() }}
+      disabled={disabled}
+    />
+  )
+}
+
+function sortExercisesByFlow(exercises) {
+  return exercises
+    .map((ex, originalIndex) => ({ ex, originalIndex }))
+    .sort((a, b) => {
+      const ac = a.ex.completed ? 1 : 0
+      const bc = b.ex.completed ? 1 : 0
+      if (ac !== bc) return ac - bc
+      if (a.ex.completed && b.ex.completed) {
+        return (a.ex.completedAt ?? 0) - (b.ex.completedAt ?? 0)
+      }
+      return a.originalIndex - b.originalIndex
+    })
+    .map(e => e.ex)
 }
 
 function historyToLogSession(entry) {
@@ -278,7 +341,7 @@ export default function Workouts() {
   async function saveSession() {
     const cleaned = {
       label: session.label || 'Workout',
-      exercises: session.exercises
+      exercises: sortExercisesByFlow(session.exercises)
         .filter(ex => ex.name.trim())
         .map(ex => ({
           name: ex.name,
@@ -482,7 +545,8 @@ export default function Workouts() {
       {editPickerOpen && (
         <ExercisePicker
           onSelect={name => {
-            setEditDraft(d => ({ ...d, exercises: [...d.exercises, { name, sets: [emptySet()] }] }))
+            const seed = lastSetForExercise(name, history) ?? emptySet()
+            setEditDraft(d => ({ ...d, exercises: [...d.exercises, { name, sets: [seed] }] }))
             setEditPickerOpen(false)
           }}
           onClose={() => setEditPickerOpen(false)}
@@ -567,7 +631,12 @@ function HistoryEditBody({ draft, onChange, onSave, onCancel, onOpenPicker, savi
   function addSet(ei) {
     onChange(d => {
       const exercises = [...d.exercises]
-      exercises[ei] = { ...exercises[ei], sets: [...exercises[ei].sets, emptySet()] }
+      const sets = exercises[ei].sets
+      const prev = sets[sets.length - 1]
+      const seed = prev?.reps || prev?.weight
+        ? { reps: prev.reps, weight: prev.weight }
+        : emptySet()
+      exercises[ei] = { ...exercises[ei], sets: [...sets, seed] }
       return { ...d, exercises }
     })
   }
@@ -617,19 +686,13 @@ function HistoryEditBody({ draft, onChange, onSave, onCancel, onOpenPicker, savi
               {ex.sets.map((s, si) => (
                 <div key={si} className="log-set-row log-set-row--edit">
                   <span className="log-set-num">{si + 1}</span>
-                  <input
-                    className="log-set-input"
-                    type="number"
-                    placeholder="—"
+                  <SetCellInput
                     value={s.reps}
-                    onChange={e => updateSet(ei, si, 'reps', e.target.value)}
+                    onCommit={v => updateSet(ei, si, 'reps', v)}
                   />
-                  <input
-                    className="log-set-input"
-                    type="number"
-                    placeholder="—"
+                  <SetCellInput
                     value={s.weight}
-                    onChange={e => updateSet(ei, si, 'weight', e.target.value)}
+                    onCommit={v => updateSet(ei, si, 'weight', v)}
                   />
                   <button
                     className="remove-set-btn"
@@ -718,7 +781,15 @@ function LogSession({ session, onChange, onSave, onCancel, history = [] }) {
   function addSet(ei) {
     onChange(s => {
       const exercises = [...s.exercises]
-      exercises[ei] = { ...exercises[ei], sets: [...exercises[ei].sets, emptySet()] }
+      const sets = exercises[ei].sets
+      // Seed from the previous set in this exercise (or fall back to the user's
+      // last historical set for it) so common patterns like "3 × 12 @ 135" only
+      // need typing once.
+      const prev = sets[sets.length - 1]
+      const seed = prev?.reps || prev?.weight
+        ? { reps: prev.reps, weight: prev.weight }
+        : lastSetForExercise(exercises[ei].name, history) ?? emptySet()
+      exercises[ei] = { ...exercises[ei], sets: [...sets, seed] }
       return { ...s, exercises }
     })
   }
@@ -733,12 +804,36 @@ function LogSession({ session, onChange, onSave, onCancel, history = [] }) {
   }
 
   function addExercise(name) {
-    onChange(s => ({ ...s, exercises: [...s.exercises, { name, sets: [emptySet()] }] }))
+    const seed = lastSetForExercise(name, history) ?? emptySet()
+    onChange(s => ({ ...s, exercises: [...s.exercises, { name, sets: [seed] }] }))
   }
 
   function removeExercise(ei) {
     onChange(s => ({ ...s, exercises: s.exercises.filter((_, i) => i !== ei) }))
   }
+
+  function toggleComplete(ei) {
+    onChange(s => {
+      const exercises = [...s.exercises]
+      const ex = exercises[ei]
+      const completed = !ex.completed
+      exercises[ei] = {
+        ...ex,
+        completed,
+        completedAt: completed ? Date.now() : null,
+      }
+      return { ...s, exercises }
+    })
+  }
+
+  // Same sort applied at save time. We pair each entry with its original index
+  // so per-card handlers still write to the right slot in session.exercises.
+  const ordered = sortExercisesByFlow(session.exercises).map(ex => ({
+    ex,
+    originalIndex: session.exercises.indexOf(ex),
+  }))
+  const activeList    = ordered.filter(e => !e.ex.completed)
+  const completedList = ordered.filter(e =>  e.ex.completed)
 
   return (
     <>
@@ -795,75 +890,99 @@ function LogSession({ session, onChange, onSave, onCancel, history = [] }) {
         </div>
 
         <div className="log-exercises">
-          {session.exercises.map((ex, ei) => (
-            <div key={ei} className="log-exercise-card">
-              <div className="log-ex-header">
-                <input
-                  className="log-ex-name-input"
-                  placeholder="Exercise name"
-                  value={ex.name}
-                  onChange={e => updateExerciseName(ei, e.target.value)}
-                />
-                <button
-                  className="ex-history-btn"
-                  onClick={() => setHistoryForEx(ex.name)}
-                  disabled={!ex.name.trim()}
-                  title="View this exercise's history"
-                >
-                  History
-                </button>
-                {session.exercises.length > 1 && (
-                  <button className="remove-ex-btn" onClick={() => removeExercise(ei)}>Remove</button>
-                )}
-              </div>
-              {checkProgression(ex.name, history) && (
-                <p className="progression-warning">
-                  ⚠️ No weight progression in last 3 sessions — consider increasing weight
-                </p>
-              )}
-
-              <div className="log-sets-table">
-                <div className="log-sets-header">
-                  <span>Set</span>
-                  <span>Reps</span>
-                  <span>Weight (lbs)</span>
-                  <span />
-                  <span />
-                </div>
-                {ex.sets.map((s, si) => (
-                  <div key={si} className="log-set-row">
-                    <span className="log-set-num">{si + 1}</span>
-                    <input
-                      className="log-set-input"
-                      type="number"
-                      placeholder="—"
-                      value={s.reps}
-                      onChange={e => updateSet(ei, si, 'reps', e.target.value)}
-                    />
-                    <input
-                      className="log-set-input"
-                      type="number"
-                      placeholder="—"
-                      value={s.weight}
-                      onChange={e => updateSet(ei, si, 'weight', e.target.value)}
-                    />
-                    <button
-                      className="rest-set-btn"
-                      onClick={startRestTimer}
-                      title={`Start ${timer.target}s rest timer`}
-                    >⏱</button>
-                    <button
-                      className="remove-set-btn"
-                      onClick={() => removeSet(ei, si)}
-                      disabled={ex.sets.length === 1}
-                    >×</button>
+          {[...activeList, ...completedList].map((entry, displayPos) => {
+            const { ex, originalIndex: ei } = entry
+            const isCompleted = ex.completed
+            // Insert the divider just before the first completed card
+            const isFirstCompleted = isCompleted && displayPos === activeList.length
+            return (
+              <div key={ei}>
+                {isFirstCompleted && (
+                  <div className="completed-divider">
+                    <span>Completed</span>
                   </div>
-                ))}
-              </div>
+                )}
+                <div className={`log-exercise-card ${isCompleted ? 'log-exercise-card--completed' : ''}`}>
+                  <div className="log-ex-header">
+                    <input
+                      className="log-ex-name-input"
+                      placeholder="Exercise name"
+                      value={ex.name}
+                      onChange={e => updateExerciseName(ei, e.target.value)}
+                      disabled={isCompleted}
+                    />
+                    <button
+                      className="ex-history-btn"
+                      onClick={() => setHistoryForEx(ex.name)}
+                      disabled={!ex.name.trim()}
+                      title="View this exercise's history"
+                    >
+                      History
+                    </button>
+                    {session.exercises.length > 1 && (
+                      <button className="remove-ex-btn" onClick={() => removeExercise(ei)}>Remove</button>
+                    )}
+                  </div>
+                  {!isCompleted && checkProgression(ex.name, history) && (
+                    <p className="progression-warning">
+                      ⚠️ No weight progression in last 3 sessions — consider increasing weight
+                    </p>
+                  )}
 
-              <button className="add-set-btn" onClick={() => addSet(ei)}>+ Add Set</button>
-            </div>
-          ))}
+                  <div className="log-sets-table">
+                    <div className="log-sets-header">
+                      <span>Set</span>
+                      <span>Reps</span>
+                      <span>Weight (lbs)</span>
+                      <span />
+                      <span />
+                    </div>
+                    {ex.sets.map((s, si) => (
+                      <div key={si} className="log-set-row">
+                        <span className="log-set-num">{si + 1}</span>
+                        <SetCellInput
+                          value={s.reps}
+                          disabled={isCompleted}
+                          onCommit={v => updateSet(ei, si, 'reps', v)}
+                        />
+                        <SetCellInput
+                          value={s.weight}
+                          disabled={isCompleted}
+                          onCommit={v => updateSet(ei, si, 'weight', v)}
+                        />
+                        <button
+                          className="rest-set-btn"
+                          onClick={startRestTimer}
+                          title={`Start ${timer.target}s rest timer`}
+                          disabled={isCompleted}
+                        >⏱</button>
+                        <button
+                          className="remove-set-btn"
+                          onClick={() => removeSet(ei, si)}
+                          disabled={isCompleted || ex.sets.length === 1}
+                        >×</button>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="log-card-footer">
+                    <button
+                      className="add-set-btn"
+                      onClick={() => addSet(ei)}
+                      disabled={isCompleted}
+                    >+ Add Set</button>
+                    <button
+                      className={`complete-ex-btn ${isCompleted ? 'complete-ex-btn--done' : ''}`}
+                      onClick={() => toggleComplete(ei)}
+                      title={isCompleted ? 'Mark as not done' : 'Mark exercise complete'}
+                    >
+                      {isCompleted ? '↺ Undo' : '✓ Complete'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
         </div>
 
         <button className="add-exercise-btn" onClick={() => setPickerOpen(true)}>+ Add Exercise</button>

@@ -503,7 +503,68 @@
   text-align: left;
 }
 
-.add-set-btn:hover { color: var(--accent); }
+.add-set-btn:hover:not(:disabled) { color: var(--accent); }
+.add-set-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+/* Footer row: + Add Set on the left, ✓ Complete on the right */
+.log-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.complete-ex-btn {
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid rgba(163, 230, 53, 0.4);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.12s;
+  white-space: nowrap;
+}
+.complete-ex-btn:hover {
+  background: rgba(163, 230, 53, 0.12);
+  border-color: var(--accent);
+}
+.complete-ex-btn--done {
+  color: var(--text-muted);
+  border-color: var(--border);
+}
+.complete-ex-btn--done:hover {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border-color: var(--border-light);
+}
+
+/* Muted look for a card the user has marked done */
+.log-exercise-card--completed {
+  opacity: 0.62;
+  background: var(--bg-elevated);
+}
+
+/* Divider between active and completed sections */
+.completed-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 6px 0 2px;
+  color: var(--text-muted);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+}
+.completed-divider::before,
+.completed-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
 
 .add-exercise-btn {
   background: var(--bg-card);
