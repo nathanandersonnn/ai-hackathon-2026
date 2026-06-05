@@ -150,13 +150,25 @@ function formatHistoryDate(isoDate) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-function templateToLogSession(template) {
+function templateToLogSession(template, history = []) {
+  const exercisesWithHistory = template.exercises.map(ex => {
+    const historySet = lastSetForExercise(ex.name, history)
+    return {
+      name: ex.name,
+      sets: Array.from({ length: ex.sets }, () => historySet ?? emptySet()),
+      hasHistory: !!historySet,
+    }
+  })
+
+  // Sort so exercises with prior history appear first
+  exercisesWithHistory.sort((a, b) => (b.hasHistory ? 1 : 0) - (a.hasHistory ? 1 : 0))
+
   return {
     label: template.label,
-    exercises: template.exercises.map(ex => ({
-      name: ex.name,
-      sets: Array.from({ length: ex.sets }, () => emptySet()),
-    })),
+    exercises: exercisesWithHistory.map(ex => {
+      const { hasHistory, ...rest } = ex
+      return rest
+    }),
   }
 }
 
@@ -268,7 +280,7 @@ export default function Workouts() {
   }
 
   function startFromTemplate(template) {
-    setSession(templateToLogSession(template))
+    setSession(templateToLogSession(template, history))
     setTab('log')
   }
 
@@ -342,7 +354,7 @@ export default function Workouts() {
     const cleaned = {
       label: session.label || 'Workout',
       exercises: sortExercisesByFlow(session.exercises)
-        .filter(ex => ex.name.trim())
+        .filter(ex => ex.name.trim() && ex.completed)
         .map(ex => ({
           name: ex.name,
           sets: ex.sets
