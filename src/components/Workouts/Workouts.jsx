@@ -204,25 +204,14 @@ function SetCellInput({ value, disabled, onCommit }) {
   )
 }
 
-function hasExerciseData(exercise) {
-  return exercise.sets.some(s => s.reps || s.weight)
-}
-
 function sortExercisesByFlow(exercises) {
   return exercises
     .map((ex, originalIndex) => ({ ex, originalIndex }))
     .sort((a, b) => {
-      // Completed exercises go to bottom
+      // Previously completed exercises go first, incomplete ones go to bottom
       const ac = a.ex.completed ? 1 : 0
       const bc = b.ex.completed ? 1 : 0
-      if (ac !== bc) return ac - bc
-
-      // Among non-completed, exercises with data go first
-      if (!a.ex.completed && !b.ex.completed) {
-        const aHasData = hasExerciseData(a.ex)
-        const bHasData = hasExerciseData(b.ex)
-        if (aHasData !== bHasData) return bHasData ? 1 : -1
-      }
+      if (ac !== bc) return bc - ac // Reverse: completed (1) before not completed (0)
 
       if (a.ex.completed && b.ex.completed) {
         return (a.ex.completedAt ?? 0) - (b.ex.completedAt ?? 0)
@@ -238,6 +227,7 @@ function historyToLogSession(entry) {
     exercises: entry.exercises.map(ex => ({
       name: ex.name,
       sets: ex.sets.map(s => ({ reps: String(s.reps), weight: String(s.weight) })),
+      completed: ex.completed ?? false,
     })),
   }
 }
@@ -367,9 +357,10 @@ export default function Workouts() {
     const cleaned = {
       label: session.label || 'Workout',
       exercises: sortExercisesByFlow(session.exercises)
-        .filter(ex => ex.name.trim() && ex.completed)
+        .filter(ex => ex.name.trim())
         .map(ex => ({
           name: ex.name,
+          completed: !!ex.completed,
           sets: ex.sets
             .filter(s => s.reps)
             .map(s => ({ reps: Number(s.reps) || 0, weight: Number(s.weight) || 0 })),
