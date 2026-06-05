@@ -204,13 +204,26 @@ function SetCellInput({ value, disabled, onCommit }) {
   )
 }
 
+function hasExerciseData(exercise) {
+  return exercise.sets.some(s => s.reps || s.weight)
+}
+
 function sortExercisesByFlow(exercises) {
   return exercises
     .map((ex, originalIndex) => ({ ex, originalIndex }))
     .sort((a, b) => {
+      // Completed exercises go to bottom
       const ac = a.ex.completed ? 1 : 0
       const bc = b.ex.completed ? 1 : 0
       if (ac !== bc) return ac - bc
+
+      // Among non-completed, exercises with data go first
+      if (!a.ex.completed && !b.ex.completed) {
+        const aHasData = hasExerciseData(a.ex)
+        const bHasData = hasExerciseData(b.ex)
+        if (aHasData !== bHasData) return bHasData ? 1 : -1
+      }
+
       if (a.ex.completed && b.ex.completed) {
         return (a.ex.completedAt ?? 0) - (b.ex.completedAt ?? 0)
       }
