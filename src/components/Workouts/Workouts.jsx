@@ -730,6 +730,39 @@ function LogSession({ session, onChange, onSave, onCancel, history = [], saving 
   const [historyForEx, setHistoryForEx] = useState(null)
   const [timer, setTimer] = useState({ active: false, seconds: 90, target: 90, paused: false })
   const intervalRef = useRef(null)
+  const autoSaveRef = useRef(null)
+
+  // Auto-save every 30 seconds
+  useEffect(() => {
+    async function autoSave() {
+      if (!session) return
+      const cleaned = {
+        label: session.label || 'Workout',
+        exercises: sortExercisesByFlow(session.exercises)
+          .filter(ex => ex.name.trim())
+          .map(ex => ({
+            name: ex.name,
+            completed: !!ex.completed,
+            sets: ex.sets
+              .filter(s => s.reps)
+              .map(s => ({ reps: Number(s.reps) || 0, weight: Number(s.weight) || 0 })),
+          })),
+      }
+      try {
+        if (session.id) {
+          await updateWorkoutSession(session.id, cleaned)
+        } else {
+          const saved = await saveWorkoutSession(cleaned)
+          onChange(s => ({ ...s, id: saved.id }))
+        }
+      } catch (err) {
+        console.error('Auto-save failed:', err)
+      }
+    }
+
+    autoSaveRef.current = setInterval(autoSave, 30000)
+    return () => clearInterval(autoSaveRef.current)
+  }, [session, onChange])
 
   useEffect(() => {
     if (timer.active && !timer.paused) {
@@ -1002,7 +1035,7 @@ function LogSession({ session, onChange, onSave, onCancel, history = [], saving 
         <div className="log-session-actions">
           <button className="btn-ghost" onClick={onCancel} disabled={saving}>Cancel</button>
           <button className="btn-accent" onClick={onSave} disabled={saving}>
-            {saving ? 'Saving…' : 'Save Workout'}
+            {saving ? 'Saving…' : 'Done'}
           </button>
         </div>
       </div>
