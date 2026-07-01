@@ -247,6 +247,7 @@ export default function Workouts() {
   const [editPickerOpen, setEditPickerOpen] = useState(false)
   const [editSaving, setEditSaving] = useState(false)
   const [session, setSession] = useState(null)       // active log session
+  const [savingSession, setSavingSession] = useState(false)
 
   useEffect(() => {
     getWorkoutSessions()
@@ -354,6 +355,7 @@ export default function Workouts() {
   }
 
   async function saveSession() {
+    if (savingSession) return
     const cleaned = {
       label: session.label || 'Workout',
       exercises: sortExercisesByFlow(session.exercises)
@@ -366,6 +368,7 @@ export default function Workouts() {
             .map(s => ({ reps: Number(s.reps) || 0, weight: Number(s.weight) || 0 })),
         })),
     }
+    setSavingSession(true)
     try {
       const saved = await saveWorkoutSession(cleaned)
       setHistory(prev => [saved, ...prev])
@@ -374,6 +377,8 @@ export default function Workouts() {
     } catch (err) {
       console.error('Save workout failed:', err)
       alert('Could not save workout — check console.')
+    } finally {
+      setSavingSession(false)
     }
   }
 
@@ -585,6 +590,7 @@ export default function Workouts() {
           onSave={saveSession}
           onCancel={() => { setSession(null); setTab('browse') }}
           history={history}
+          saving={savingSession}
         />
       )}
     </div>
@@ -737,7 +743,7 @@ function HistoryEditBody({ draft, onChange, onSave, onCancel, onOpenPicker, savi
 }
 
 // ── Log Session sub-component ────────────────────────────────
-function LogSession({ session, onChange, onSave, onCancel, history = [] }) {
+function LogSession({ session, onChange, onSave, onCancel, history = [], saving = false }) {
   const [pickerOpen, setPickerOpen] = useState(false)
   const [historyForEx, setHistoryForEx] = useState(null)
   const [timer, setTimer] = useState({ active: false, seconds: 90, target: 90, paused: false })
@@ -1017,8 +1023,10 @@ function LogSession({ session, onChange, onSave, onCancel, history = [] }) {
         </div>
 
         <div className="log-session-actions">
-          <button className="btn-ghost" onClick={onCancel}>Cancel</button>
-          <button className="btn-accent" onClick={onSave}>Save Workout</button>
+          <button className="btn-ghost" onClick={onCancel} disabled={saving}>Cancel</button>
+          <button className="btn-accent" onClick={onSave} disabled={saving}>
+            {saving ? 'Saving…' : 'Save Workout'}
+          </button>
         </div>
       </div>
     </>
