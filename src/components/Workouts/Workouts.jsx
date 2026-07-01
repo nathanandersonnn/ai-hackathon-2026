@@ -227,7 +227,7 @@ function historyToLogSession(entry) {
     exercises: entry.exercises.map(ex => ({
       name: ex.name,
       sets: ex.sets.map(s => ({ reps: String(s.reps), weight: String(s.weight) })),
-      completed: ex.completed ?? false,
+      completed: false,
     })),
   }
 }
