@@ -597,24 +597,6 @@ export default function Workouts() {
   )
 }
 
-// ── Progressive overload check ───────────────────────────────
-// Returns true when the named exercise shows no weight increase across the
-// last 3 sessions that included it (only fires when there are ≥3 sessions).
-function checkProgression(exerciseName, history) {
-  if (!exerciseName.trim()) return false
-  const name = exerciseName.toLowerCase().trim()
-  const relevant = history
-    .filter(s => s.exercises?.some(e => e.name.toLowerCase().trim() === name))
-    .slice(0, 3) // history is already newest-first
-  if (relevant.length < 3) return false
-  // Max weight per session; index 0 = most recent, 2 = oldest
-  const maxWeights = relevant.map(s => {
-    const ex = s.exercises.find(e => e.name.toLowerCase().trim() === name)
-    return Math.max(0, ...(ex?.sets?.map(st => Number(st.weight) || 0) ?? [0]))
-  })
-  return maxWeights[0] > 0 && maxWeights[0] <= maxWeights[2]
-}
-
 // ── Web Audio beep ───────────────────────────────────────────
 function playBeep() {
   try {
@@ -945,11 +927,6 @@ function LogSession({ session, onChange, onSave, onCancel, history = [], saving 
                       <button className="remove-ex-btn" onClick={() => removeExercise(ei)}>Remove</button>
                     )}
                   </div>
-                  {!isCompleted && checkProgression(ex.name, history) && (
-                    <p className="progression-warning">
-                      ⚠️ No weight progression in last 3 sessions — consider increasing weight
-                    </p>
-                  )}
 
                   <div className="log-sets-table">
                     <div className="log-sets-header">
