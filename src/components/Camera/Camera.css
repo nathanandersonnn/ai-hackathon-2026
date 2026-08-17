@@ -113,7 +113,7 @@
   top: 14px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(163, 230, 53, 0.92);
+  background: rgba(255, 155, 69, 0.92);
   color: #0a0a14;
   font-size: 13px;
   font-weight: 700;
@@ -140,7 +140,7 @@
   font-weight: 700;
   color: var(--accent);
   line-height: 1;
-  text-shadow: 0 0 40px rgba(163, 230, 53, 0.5);
+  text-shadow: 0 0 40px rgba(255, 155, 69, 0.5);
 }
 
 .countdown-label {
@@ -211,7 +211,7 @@
 
 .exercise-pill--active {
   background: var(--accent-glow);
-  border-color: rgba(163, 230, 53, 0.4);
+  border-color: rgba(255, 155, 69, 0.4);
   color: var(--accent);
 }
 
@@ -251,7 +251,7 @@
 
 .unit-toggle--active {
   background: var(--accent-glow);
-  border-color: rgba(163,230,53,0.4);
+  border-color: rgba(255, 155, 69,0.4);
   color: var(--accent);
 }
 
@@ -400,7 +400,7 @@
 }
 
 .feedback-item--good {
-  background: rgba(163, 230, 53, 0.08);
+  background: rgba(255, 155, 69, 0.08);
   color: var(--text-secondary);
   border-left: 3px solid var(--accent);
 }

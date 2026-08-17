@@ -513,7 +513,7 @@ function drawPose(canvas, landmarks) {
   const h = canvas.height
   ctx.clearRect(0, 0, w, h)
 
-  ctx.strokeStyle = '#a3e635'
+  ctx.strokeStyle = '#ff9b45'
   ctx.lineWidth = 3
   for (const [a, b] of POSE_CONNECTIONS) {
     const p1 = landmarks[a]
@@ -526,7 +526,7 @@ function drawPose(canvas, landmarks) {
     ctx.stroke()
   }
 
-  ctx.fillStyle = '#a3e635'
+  ctx.fillStyle = '#ff9b45'
   for (let i = 11; i < landmarks.length; i++) {
     const p = landmarks[i]
     if (!p || (p.visibility ?? 1) < 0.5) continue
