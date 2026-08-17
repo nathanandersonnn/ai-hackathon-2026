@@ -1,18 +1,10 @@
 // ─────────────────────────────────────────────
-//  Form Check API
-//  Handles pose analysis and per-set feedback.
+//  Form Check API — client
 //
-//  ENV VARS NEEDED (add to your .env file):
-//    VITE_FORM_CHECK_API_URL=https://your-backend.com
-//    VITE_FORM_CHECK_API_KEY=your_key_here
+//  Talks to /api/analyze-set, which is a Vercel function in production
+//  and the express dev server locally. No API key here on purpose: any
+//  key referenced from src/ gets inlined into the browser bundle.
 // ─────────────────────────────────────────────
-
-const BASE_URL = import.meta.env.VITE_FORM_CHECK_API_URL ?? ''
-const API_KEY  = import.meta.env.VITE_FORM_CHECK_API_KEY
-
-function authHeaders() {
-  return API_KEY ? { Authorization: `Bearer ${API_KEY}` } : {}
-}
 
 /**
  * Send a completed set to the backend for form analysis.
@@ -34,42 +26,37 @@ function authHeaders() {
 export async function analyzeSet(setData, { onStage } = {}) {
   const telemetry = Array.isArray(setData.telemetry) ? setData.telemetry : []
   const detected = setData.reps ?? telemetry.length
-  const payload = {
-    exercise: setData.exercise,
-    target_reps: setData.targetReps ?? detected,
-    detected_reps: detected,
-    telemetry_summary: telemetry,
-  }
 
-  const body = JSON.stringify(payload)
-  console.log('[analyzeSet] payload', payload, `(${body.length} bytes) → ${BASE_URL}/analyze-set`)
-
-  console.log("Sending telemetry:", JSON.stringify(payload, null, 2))
-
-  const request = fetch(`${BASE_URL}/analyze-set`, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json', ...authHeaders() },
-  body,
+  const request = fetch('/api/analyze-set', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      exercise: setData.exercise,
+      target_reps: setData.targetReps ?? detected,
+      detected_reps: detected,
+      telemetry_summary: telemetry,
+    }),
   })
   onStage?.('sent')
-  const response = await request
-  console.log('[analyzeSet] response received, status', response.status)
 
-  if (!response.ok) throw new Error(`Form check API error: ${response.status}`)
+  const response = await assertJsonOk(await request)
   return response.json()
 }
 
 /**
- * Fetch exercise-specific form rules/tips for the UI.
- *
- * @param {string} exercise - e.g. "Squat"
- * @returns {Promise<{ tips: string[] }>}
+ * The SPA rewrite means a missing route answers 200 with the HTML shell
+ * rather than a 404, so a content-type check is what actually catches a
+ * misconfigured deploy. Without it the failure surfaces as a confusing
+ * "Unexpected token '<'" from response.json().
  */
-export async function getExerciseTips(exercise) {
-  const response = await fetch(`${BASE_URL}/exercise-tips/${encodeURIComponent(exercise)}`, {
-    headers: authHeaders(),
-  })
-
-  if (!response.ok) throw new Error(`Form check API error: ${response.status}`)
-  return response.json()
+async function assertJsonOk(response) {
+  const type = response.headers.get('content-type') ?? ''
+  if (!type.includes('application/json')) {
+    throw new Error('Form check API is not deployed — /api/analyze-set did not return JSON')
+  }
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}))
+    throw new Error(err.error ?? `Form check API error: ${response.status}`)
+  }
+  return response
 }

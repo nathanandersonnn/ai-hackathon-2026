@@ -1,61 +1,93 @@
 .sidebar {
-  width: 220px;
-  min-width: 220px;
+  width: 224px;
+  min-width: 224px;
   background: var(--bg-surface);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  padding: 24px 12px;
-  gap: 8px;
+  padding: 22px 10px;
+  gap: 6px;
+  position: relative;
+}
+
+/* Knurled edge: the rail the whole app hangs off. */
+.sidebar::after {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0; right: -1px;
+  width: 3px;
+  background: var(--knurl);
+  opacity: 0.5;
+  pointer-events: none;
 }
 
 .sidebar-logo {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
-  padding: 0 8px 20px;
+  gap: 6px;
+  padding: 0 8px 18px;
   border-bottom: 1px solid var(--border);
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .logo-img {
-  width: 160px;
+  width: 132px;
   height: auto;
   flex-shrink: 0;
 }
 
 .logo-text {
   font-family: var(--font-display);
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 800;
+  font-stretch: 112%;
   color: var(--text-primary);
-  letter-spacing: -0.2px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 .logo-dot {
   color: var(--accent);
+  font-weight: 500;
 }
 
 .sidebar-nav {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
   flex: 1;
 }
 
 .nav-item {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 11px;
   width: 100%;
-  padding: 10px 12px;
+  padding: 10px 12px 10px 14px;
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-secondary);
   font-size: 13.5px;
   font-weight: 500;
-  transition: all 0.15s ease;
+  text-align: left;
+  transition: background 0.14s ease, color 0.14s ease;
+}
+
+/* The rack pin: a solid sodium bar seats into the active slot.
+   No glow — this app is an instrument, not a neon sign. */
+.nav-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 3px;
+  height: 0;
+  border-radius: 0 2px 2px 0;
+  background: var(--accent);
+  transform: translateY(-50%);
+  transition: height 0.16s ease;
 }
 
 .nav-item:hover {
@@ -64,24 +96,34 @@
 }
 
 .nav-item--active {
-  background: var(--accent-glow);
-  color: var(--accent);
-  border: 1px solid rgba(163, 230, 53, 0.2);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+.nav-item--active::before {
+  height: 62%;
 }
 
 .nav-item--active:hover {
-  background: var(--accent-glow);
-  color: var(--accent);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
 }
 
 .nav-item svg {
   flex-shrink: 0;
-  opacity: 0.8;
+  opacity: 0.62;
+  transition: opacity 0.14s ease, color 0.14s ease;
 }
+
+.nav-item:hover svg { opacity: 0.85; }
 
 .nav-item--active svg {
   opacity: 1;
+  color: var(--accent);
 }
+
+/* More is a phone affordance — the desktop rail already lists everything. */
+.nav-item--more { display: none; }
 
 .about-nav-item {
   margin-bottom: 6px;
@@ -91,7 +133,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 8px;
+  padding: 12px 10px;
   border-top: 1px solid var(--border);
   margin-top: auto;
 }
@@ -99,11 +141,12 @@
 .user-avatar {
   width: 32px;
   height: 32px;
-  border-radius: 50%;
+  border-radius: var(--radius-sm);
   background: var(--accent);
   color: var(--bg-base);
-  font-weight: 700;
-  font-size: 13px;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -117,9 +160,12 @@
 }
 
 .user-streak {
-  font-size: 11px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--text-muted);
-  margin-top: 1px;
+  margin-top: 2px;
 }
 
 .sidebar-user--clickable {
@@ -135,18 +181,26 @@
 .user-signout {
   background: transparent;
   color: var(--text-muted);
-  font-size: 11px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   padding: 0;
-  margin-top: 2px;
+  margin-top: 3px;
   text-align: left;
   cursor: pointer;
   transition: color 0.12s;
 }
 
-.user-signout:hover { color: var(--red); }
+.user-signout:hover { color: var(--plate-red); }
 
 /* ──────────────────────────────────────────────────────────────
-   Mobile: convert sidebar to bottom nav
+   Mobile: the rail becomes a five-slot bottom bar.
+
+   Five fixed slots, never a scrolling row — a destination you have to
+   swipe sideways to discover is a destination you don't use. Form Check
+   earns one of the five: it's the reason to bring the phone to the gym.
+   Everything else lives in More.
    ────────────────────────────────────────────────────────────── */
 @media (max-width: 768px) {
   .sidebar {
@@ -160,27 +214,49 @@
     flex-direction: row;
     align-items: stretch;
     gap: 0;
-    padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+    padding: 4px 2px calc(4px + env(safe-area-inset-bottom));
     border-right: none;
     border-top: 1px solid var(--border);
-    background: rgba(17, 17, 24, 0.96);
+    background: rgba(25, 28, 34, 0.96);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
-    z-index: 50;
-    overflow-x: auto;
-    overflow-y: hidden;
-    scrollbar-width: none;
+    /* Above the More scrim so the bar stays live while the sheet is open —
+       More has aria-expanded, so it has to be tappable to collapse. */
+    z-index: 70;
+    overflow: visible;
   }
 
-  .sidebar::-webkit-scrollbar { display: none; }
+  /* The knurl follows the load: on a phone the bar is the load-bearing
+     edge, so the texture moves to its top rather than disappearing. */
+  .sidebar::after {
+    top: -1px;
+    bottom: auto;
+    left: 0;
+    right: 0;
+    width: auto;
+    height: 3px;
+    background: repeating-linear-gradient(
+      135deg,
+      var(--border-light) 0 1px,
+      transparent 1px 5px
+    );
+    opacity: 0.45;
+  }
 
-  /* Logo + user-card don't belong in a bottom bar.
-     Form Check + About Us are hidden on mobile per product call. */
+  /* Logo, user card, and About belong to the rail, not the bar. */
   .sidebar-logo,
   .sidebar-user,
-  .sidebar .nav-item[data-nav-id="camera"],
   .about-nav-item {
     display: none;
+  }
+
+  /* Only the four primaries ride in the bar; the rest are in More. */
+  .sidebar .nav-item[data-primary='false'] {
+    display: none;
+  }
+
+  .nav-item--more {
+    display: flex;
   }
 
   .sidebar-nav {
@@ -190,23 +266,67 @@
     min-width: 0;
   }
 
-  .nav-item,
-  .about-nav-item {
+  .nav-item {
     flex: 1 1 0;
-    min-width: 64px;
+    min-width: 0;
+    /* 52px + the label keeps every slot past the 44px touch minimum
+       without making the bar eat the screen. */
+    min-height: 52px;
     flex-direction: column;
-    gap: 3px;
-    padding: 6px 4px;
+    justify-content: center;
+    gap: 4px;
+    padding: 6px 2px;
     font-size: 10.5px;
+    font-weight: 600;
     line-height: 1.1;
+    letter-spacing: 0.01em;
     text-align: center;
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     margin: 0;
   }
 
+  /* The pin rotates to the top edge — same signal, bottom-bar geometry. */
+  .nav-item::before {
+    left: 50%;
+    top: 0;
+    transform: translateX(-50%);
+    width: 0;
+    height: 2px;
+    border-radius: 0 0 2px 2px;
+    transition: width 0.16s ease;
+  }
+
+  .nav-item--active::before {
+    height: 2px;
+    width: 26px;
+  }
+
+  /* Hover is a desktop fiction; on a touch bar it sticks after a tap.
+     Press feedback replaces it. */
+  .nav-item:hover {
+    background: transparent;
+    color: var(--text-secondary);
+  }
+  .nav-item:hover svg { opacity: 0.62; }
+
+  .nav-item--active,
+  .nav-item--active:hover {
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+  }
+  .nav-item--active svg,
+  .nav-item--active:hover svg {
+    opacity: 1;
+    color: var(--accent);
+  }
+
+  .nav-item:active {
+    background: var(--bg-elevated);
+  }
+
   .nav-item svg {
-    width: 20px;
-    height: 20px;
+    width: 21px;
+    height: 21px;
   }
 
   .nav-item span {
@@ -215,13 +335,155 @@
     text-overflow: ellipsis;
     max-width: 100%;
   }
+}
 
-  .about-nav-item {
-    margin-bottom: 0;
-  }
+/* ──────────────────────────────────────────────────────────────
+   More sheet
+   ────────────────────────────────────────────────────────────── */
+.more-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  background: rgba(10, 11, 14, 0.62);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  animation: more-fade 0.16s ease;
+}
 
-  /* Active state: drop the border so items line up evenly */
-  .nav-item--active {
-    border: none;
-  }
+.more-sheet {
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border-light);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  padding: 10px 12px calc(12px + env(safe-area-inset-bottom));
+  /* Clears the bar it rises from. */
+  margin-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom));
+  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.45);
+  animation: more-rise 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.more-grip {
+  width: 34px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--border-light);
+  margin: 2px auto 12px;
+}
+
+.more-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.more-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 14.5px;
+  font-weight: 500;
+  text-align: left;
+}
+
+.more-row svg {
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+
+.more-row:active {
+  background: var(--bg-elevated);
+}
+
+.more-row--active {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+.more-row--active svg {
+  opacity: 1;
+  color: var(--accent);
+}
+
+/* Same rack pin as the rail, seated on the left edge. */
+.more-row--active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 3px;
+  height: 58%;
+  border-radius: 0 2px 2px 0;
+  background: var(--accent);
+  transform: translateY(-50%);
+}
+
+.more-account {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.more-account-id {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  min-height: 48px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-family: inherit;
+  text-align: left;
+}
+
+.more-account-id:active {
+  background: var(--bg-elevated);
+}
+
+.more-signout {
+  flex-shrink: 0;
+  min-height: 44px;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.more-signout:active {
+  color: var(--plate-red);
+  border-color: var(--plate-red);
+}
+
+@keyframes more-rise {
+  from { transform: translateY(12px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+@keyframes more-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* The sheet is a phone control; the desktop rail never needs it. */
+@media (min-width: 769px) {
+  .more-scrim { display: none; }
 }

@@ -4,9 +4,10 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
+    // Mirrors production, where /api/* is served by Vercel functions
+    // instead of the SPA rewrite.
     proxy: {
-      '/analyze-set': 'http://localhost:3001',
-      '/health': 'http://localhost:3001',
+      '/api': 'http://localhost:3001',
     },
   },
 })

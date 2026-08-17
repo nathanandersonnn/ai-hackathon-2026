@@ -87,7 +87,7 @@
   transition: border-color 0.15s;
 }
 
-.workout-card--open.workout-card--accent { border-color: rgba(163,230,53,0.35); }
+.workout-card--open.workout-card--accent { border-color: rgba(255, 155, 69,0.35); }
 .workout-card--open.workout-card--blue   { border-color: rgba(56,189,248,0.35); }
 .workout-card--open.workout-card--purple { border-color: rgba(167,139,250,0.35); }
 .workout-card--open.workout-card--orange { border-color: rgba(251,146,60,0.35); }
@@ -148,7 +148,7 @@
   border-radius: 999px;
 }
 
-.workout-tag--accent { background: rgba(163,230,53,0.12); color: var(--accent); }
+.workout-tag--accent { background: rgba(255, 155, 69,0.12); color: var(--accent); }
 .workout-tag--blue   { background: rgba(56,189,248,0.12); color: var(--blue); }
 .workout-tag--purple { background: rgba(167,139,250,0.12); color: var(--purple); }
 .workout-tag--orange { background: rgba(251,146,60,0.12); color: var(--orange); }
@@ -355,6 +355,65 @@
   gap: 16px;
 }
 
+/* Sticky: the way out of a session was at the bottom of every exercise
+   card you'd added. Mid-workout, Done should be one thumb-reach away
+   however far you've scrolled. */
+.log-session-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  background: var(--bg-base);
+  border-bottom: 1px solid var(--border);
+}
+
+.log-session-header-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.log-header-btn {
+  min-height: 44px;
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-light);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.log-header-btn:hover:not(:disabled) {
+  color: var(--text-primary);
+  border-color: var(--text-muted);
+}
+
+.log-header-btn--save {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg-base);
+}
+
+.log-header-btn--save:hover:not(:disabled) {
+  background: var(--accent);
+  color: var(--bg-base);
+  filter: brightness(1.1);
+}
+
+.log-header-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* While the dock is up it covers the last stretch of the page. */
+.log-session--resting { padding-bottom: 64px; }
+
 .log-title-input {
   width: 100%;
   background: var(--bg-card);
@@ -517,7 +576,7 @@
 .complete-ex-btn {
   background: transparent;
   color: var(--accent);
-  border: 1px solid rgba(163, 230, 53, 0.4);
+  border: 1px solid rgba(255, 155, 69, 0.4);
   font-size: 12px;
   font-weight: 600;
   padding: 6px 12px;
@@ -527,7 +586,7 @@
   white-space: nowrap;
 }
 .complete-ex-btn:hover {
-  background: rgba(163, 230, 53, 0.12);
+  background: rgba(255, 155, 69, 0.12);
   border-color: var(--accent);
 }
 .complete-ex-btn--done {
@@ -700,7 +759,7 @@
 
 .muscle-pill--active {
   background: var(--accent-glow);
-  border-color: rgba(163,230,53,0.4);
+  border-color: rgba(255, 155, 69,0.4);
   color: var(--accent);
 }
 
@@ -809,18 +868,26 @@
   gap: 5px;
 }
 
-/* ── Rest-timer trigger button (per set row) ── */
+/* ── Rest-timer trigger button (per set row) ──
+   Starting rest is the most-tapped control in a session, so it reads as a
+   control. At 0.55 opacity and no border it was indistinguishable from the
+   disabled remove button beside it. */
 .rest-set-btn {
   background: transparent;
-  border: none;
-  font-size: 15px;
+  border: 1px solid var(--accent-dim);
+  border-radius: var(--radius-sm);
+  color: var(--accent);
+  font-size: 14px;
   cursor: pointer;
-  padding: 0 4px;
-  opacity: 0.55;
-  transition: opacity 0.15s;
+  padding: 4px 6px;
+  transition: background 0.15s, border-color 0.15s;
   line-height: 1;
 }
-.rest-set-btn:hover { opacity: 1; }
+.rest-set-btn:hover:not(:disabled) {
+  background: var(--accent-glow);
+  border-color: var(--accent);
+}
+.rest-set-btn:disabled { opacity: 0.25; cursor: not-allowed; }
 
 /* ── Rest-timer config row ── */
 .rest-timer-config {
@@ -846,82 +913,100 @@
 }
 .rest-timer-config-input:focus { border-color: var(--accent); }
 
-/* ── Rest-timer popup ── */
-.rest-timer-overlay {
+/* ── Rest dock ──────────────────────────────────────────────
+   The session's one loud element. It docks above the bottom nav rather
+   than covering the page, because resting and logging the set you just
+   finished happen in the same minute. The sodium load-line drains right
+   to left — a plate coming off the bar, in the app's own material. */
+.rest-dock {
   position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.65);
-  z-index: 110;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-}
-
-.rest-timer-popup {
-  background: var(--bg-surface);
-  border: 1px solid var(--accent);
-  border-radius: var(--radius-lg);
-  width: 100%;
-  max-width: 360px;
-  padding: 22px 24px 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  box-shadow: 0 24px 64px rgba(0,0,0,0.6);
-}
-
-.rest-timer-popup-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.rest-timer-label {
-  font-size: 11px;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-weight: 600;
-}
-
-.rest-timer-popup-time {
-  font-size: 64px;
-  font-weight: 700;
-  color: var(--accent);
-  font-variant-numeric: tabular-nums;
-  font-family: var(--font-display);
-  line-height: 1;
-  text-align: center;
-  letter-spacing: -0.02em;
-}
-
-.rest-timer-popup-track {
-  height: 8px;
-  background: var(--border);
-  border-radius: 99px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 45;
+  background: var(--bg-elevated);
+  border-top: 1px solid var(--accent-line);
+  padding-bottom: env(safe-area-inset-bottom);
+  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.4);
   overflow: hidden;
 }
 
-.rest-timer-fill {
-  height: 100%;
-  background: var(--accent);
-  border-radius: 99px;
-  transition: width 0.9s linear;
+/* Sits behind the controls so the numbers stay legible over it. */
+.rest-dock-load {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--accent-glow);
+  border-right: 2px solid var(--accent);
+  transition: width 0.25s linear;
+  pointer-events: none;
 }
 
-.rest-timer-popup-controls {
+.rest-dock-body {
+  position: relative;
   display: flex;
-  gap: 8px;
-  justify-content: stretch;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  min-height: 56px;
 }
 
-.rest-timer-popup-controls .btn-ghost,
-.rest-timer-popup-controls .btn-accent {
-  flex: 1;
-  padding: 9px 10px;
-  font-size: 12.5px;
-  text-align: center;
+.rest-dock-time {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.rest-dock-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.rest-dock-controls {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.rest-dock-btn {
+  min-height: 44px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-light);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.rest-dock-btn:hover { color: var(--text-primary); border-color: var(--text-muted); }
+.rest-dock-btn:active { background: var(--bg-elevated); }
+
+.rest-dock-btn--end {
+  border-color: var(--accent-dim);
+  color: var(--accent);
+}
+
+/* On desktop the dock rides the bottom of the viewport; on mobile it has
+   to clear the nav bar it sits above. */
+@media (max-width: 768px) {
+  .rest-dock {
+    bottom: calc(var(--nav-h) + env(safe-area-inset-bottom));
+    padding-bottom: 0;
+  }
+  .rest-dock-body { padding: 8px 12px; gap: 8px; }
+  .rest-dock-label { display: none; }
+  .rest-dock-btn { padding: 10px 9px; font-size: 10.5px; }
 }
 
 /* ── Exercise history button (in log session) ── */
@@ -1186,20 +1271,50 @@
   .history-card-right { gap: 6px; }
   .repeat-btn { padding: 6px 10px; }
 
+  /* Sticky header has to survive a 390px screen: the title gives up size
+     so both controls keep their full touch height. */
+  .log-session-header {
+    gap: 6px;
+    padding: 8px 0;
+  }
+  .log-title-input {
+    padding: 10px 12px;
+    font-size: 16px;
+  }
+  .log-title-input::placeholder { font-size: 14px; }
+  .log-header-btn {
+    padding: 10px 12px;
+    font-size: 10.5px;
+  }
+
   /* Log Session — tighten so the 5-col grid fits */
   .log-exercise-card { padding: 14px; }
   .log-ex-header { flex-wrap: wrap; gap: 8px; }
   .remove-ex-btn { padding: 6px 10px; font-size: 11.5px; }
 
+  /* The rest and remove columns were 28px and 24px — under half the 44px
+     touch minimum, on a row where a mis-tap deletes a logged set. Both get
+     real width; the inputs give up the difference and still fit two
+     three-digit numbers. */
   .log-sets-header,
   .log-set-row {
-    grid-template-columns: 28px 1fr 1fr 28px 24px;
-    gap: 6px;
-    padding-left: 8px;
-    padding-right: 8px;
+    grid-template-columns: 24px 1fr 1fr 44px 44px;
+    gap: 4px;
+    padding-left: 6px;
+    padding-right: 6px;
   }
   .log-set-input {
-    padding: 8px 6px;
+    padding: 10px 6px;
+  }
+
+  .rest-set-btn,
+  .remove-set-btn {
+    min-height: 44px;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
   }
 
   /* Session save bar — anchor + cap widths */
@@ -1212,10 +1327,6 @@
     flex: 1;
     max-width: 240px;
   }
-
-  /* Rest-timer popup tightens on small screens */
-  .rest-timer-popup { max-width: 100%; padding: 18px 18px 16px; }
-  .rest-timer-popup-time { font-size: 52px; }
 
   /* History button drops below the name input when the row wraps */
   .ex-history-btn { font-size: 11.5px; padding: 6px 10px; }

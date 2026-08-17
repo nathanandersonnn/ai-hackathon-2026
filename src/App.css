@@ -1,6 +1,10 @@
 .app-shell {
   display: flex;
+  /* dvh tracks the mobile URL bar; 100vh alone measures the tallest
+     state, pushing the fixed bottom nav below the fold. vh first as a
+     fallback for browsers without dvh. */
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
 }
 
@@ -17,6 +21,6 @@
   /* Sidebar is fixed-bottom on mobile; reserve space below content so
      nothing sits behind it. Includes safe-area for iOS home indicator. */
   .app-main {
-    padding-bottom: calc(68px + env(safe-area-inset-bottom));
+    padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom));
   }
 }

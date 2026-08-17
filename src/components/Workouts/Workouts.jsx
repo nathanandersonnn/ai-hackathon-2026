@@ -598,16 +598,31 @@ export default function Workouts() {
 }
 
 // ── Web Audio beep ───────────────────────────────────────────
-function playBeep() {
+// iOS starts every AudioContext suspended and only lets a user gesture resume
+// it. The beep fires from a timer callback, which is not a gesture — so the
+// context is built and unlocked on the tap that starts the rest, then reused.
+let audioCtx = null
+
+function primeAudio() {
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)()
-    const osc  = ctx.createOscillator()
-    const gain = ctx.createGain()
-    osc.connect(gain); gain.connect(ctx.destination)
+    audioCtx ??= new (window.AudioContext || window.webkitAudioContext)()
+    if (audioCtx.state === 'suspended') audioCtx.resume()
+  } catch (e) { console.warn('Audio unavailable:', e) }
+}
+
+function playBeep() {
+  // Android delivers this even with the screen off; iOS ignores it silently.
+  navigator.vibrate?.([120, 80, 120])
+  try {
+    if (!audioCtx) return
+    if (audioCtx.state === 'suspended') audioCtx.resume()
+    const osc  = audioCtx.createOscillator()
+    const gain = audioCtx.createGain()
+    osc.connect(gain); gain.connect(audioCtx.destination)
     osc.frequency.value = 880; osc.type = 'sine'
-    gain.gain.setValueAtTime(0.3, ctx.currentTime)
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5)
-    osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.5)
+    gain.gain.setValueAtTime(0.3, audioCtx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5)
+    osc.start(audioCtx.currentTime); osc.stop(audioCtx.currentTime + 0.5)
   } catch (e) { console.warn('Beep failed:', e) }
 }
 
@@ -728,7 +743,17 @@ function HistoryEditBody({ draft, onChange, onSave, onCancel, onOpenPicker, savi
 function LogSession({ session, onChange, onSave, onCancel, history = [], saving = false }) {
   const [pickerOpen, setPickerOpen] = useState(false)
   const [historyForEx, setHistoryForEx] = useState(null)
-  const [timer, setTimer] = useState({ active: false, seconds: 90, target: 90, paused: false })
+  // The timer counts against a wall-clock deadline rather than decrementing a
+  // counter. Phones throttle background intervals hard — a counting-down
+  // setInterval loses most of a rest period the moment you lock the screen or
+  // switch apps, which is exactly when you're resting.
+  const [timer, setTimer] = useState({
+    active: false,
+    target: 90,
+    paused: false,
+    endsAt: null,
+    remaining: 90,
+  })
   const intervalRef = useRef(null)
   const autoSaveRef = useRef(null)
 
@@ -765,32 +790,70 @@ function LogSession({ session, onChange, onSave, onCancel, history = [], saving 
   }, [session, onChange])
 
   useEffect(() => {
-    if (timer.active && !timer.paused) {
-      intervalRef.current = setInterval(() => {
-        setTimer(t => {
-          if (t.seconds <= 1) {
-            clearInterval(intervalRef.current)
-            playBeep()
-            return { ...t, active: false, seconds: 0 }
-          }
-          return { ...t, seconds: t.seconds - 1 }
-        })
-      }, 1000)
-    } else {
+    if (!timer.active || timer.paused || !timer.endsAt) {
       clearInterval(intervalRef.current)
+      return
     }
+    // Faster than 1s so the readout re-syncs quickly after the tab wakes up.
+    intervalRef.current = setInterval(() => {
+      setTimer(t => {
+        if (!t.endsAt) return t
+        const remaining = Math.max(0, Math.ceil((t.endsAt - Date.now()) / 1000))
+        if (remaining === 0) {
+          playBeep()
+          return { ...t, active: false, endsAt: null, remaining: 0 }
+        }
+        return remaining === t.remaining ? t : { ...t, remaining }
+      })
+    }, 250)
     return () => clearInterval(intervalRef.current)
-  }, [timer.active, timer.paused])
+  }, [timer.active, timer.paused, timer.endsAt])
 
   function startRestTimer() {
-    setTimer(t => ({ ...t, active: true, seconds: t.target, paused: false }))
+    primeAudio()
+    setTimer(t => ({
+      ...t,
+      active: true,
+      paused: false,
+      remaining: t.target,
+      endsAt: Date.now() + t.target * 1000,
+    }))
   }
-  function pauseTimer()   { setTimer(t => ({ ...t, paused: !t.paused })) }
-  function resetTimer()   { setTimer(t => ({ ...t, seconds: t.target, paused: false })) }
-  function dismissTimer() { clearInterval(intervalRef.current); setTimer(t => ({ ...t, active: false })) }
+
+  function pauseTimer() {
+    setTimer(t => t.paused
+      // Resuming: re-anchor the deadline to whatever is left.
+      ? { ...t, paused: false, endsAt: Date.now() + t.remaining * 1000 }
+      : { ...t, paused: true, endsAt: null })
+  }
+
+  function resetTimer() {
+    setTimer(t => ({
+      ...t,
+      paused: false,
+      remaining: t.target,
+      endsAt: t.active ? Date.now() + t.target * 1000 : null,
+    }))
+  }
+
+  function dismissTimer() {
+    clearInterval(intervalRef.current)
+    setTimer(t => ({ ...t, active: false, paused: false, endsAt: null, remaining: t.target }))
+  }
+
+  // Mid-rest "I need a bit more" — the most common timer edit in a gym, and
+  // cheaper than re-opening a settings field.
+  function extendTimer(seconds) {
+    setTimer(t => {
+      if (!t.active) return t
+      const remaining = t.remaining + seconds
+      return { ...t, remaining, endsAt: t.paused ? null : Date.now() + remaining * 1000 }
+    })
+  }
+
   function setTimerTarget(val) {
     const n = Math.max(10, Math.min(600, parseInt(val) || 90))
-    setTimer(t => ({ ...t, target: n, seconds: n, active: false }))
+    setTimer(t => ({ ...t, target: n, remaining: n, active: false, endsAt: null }))
   }
 
   function updateLabel(val) {
@@ -889,34 +952,36 @@ function LogSession({ session, onChange, onSave, onCancel, history = [], saving 
         />
       )}
 
+      {/* Rest docks above the nav instead of covering the page. A full-screen
+          timer forces a choice between watching the clock and logging the set
+          you just finished — the two things you do at the same moment. */}
       {timer.active && (
-        <div
-          className="rest-timer-overlay"
-          onClick={e => e.target === e.currentTarget && dismissTimer()}
-        >
-          <div className="rest-timer-popup">
-            <div className="rest-timer-popup-header">
-              <span className="rest-timer-label">Rest Timer</span>
-              <button className="picker-close" onClick={dismissTimer} title="Dismiss">✕</button>
-            </div>
-            <div className="rest-timer-popup-time">
-              {String(Math.floor(timer.seconds / 60)).padStart(2, '0')}:{String(timer.seconds % 60).padStart(2, '0')}
-            </div>
-            <div className="rest-timer-popup-track">
-              <div className="rest-timer-fill" style={{ width: `${(timer.seconds / timer.target) * 100}%` }} />
-            </div>
-            <div className="rest-timer-popup-controls">
-              <button className="btn-ghost" onClick={pauseTimer}>
-                {timer.paused ? '▶ Resume' : '⏸ Pause'}
+        <div className="rest-dock" role="status" aria-live="off">
+          <div
+            className="rest-dock-load"
+            style={{ width: `${Math.min(100, (timer.remaining / timer.target) * 100)}%` }}
+          />
+          <div className="rest-dock-body">
+            <span className="rest-dock-time num">
+              {String(Math.floor(timer.remaining / 60)).padStart(2, '0')}:{String(timer.remaining % 60).padStart(2, '0')}
+            </span>
+            <span className="rest-dock-label">{timer.paused ? 'Paused' : 'Rest'}</span>
+            <div className="rest-dock-controls">
+              <button className="rest-dock-btn" onClick={() => extendTimer(30)}>+30s</button>
+              <button className="rest-dock-btn" onClick={pauseTimer}>
+                {timer.paused ? 'Resume' : 'Pause'}
               </button>
-              <button className="btn-ghost" onClick={resetTimer}>↺ Reset</button>
-              <button className="btn-accent" onClick={dismissTimer}>Done</button>
+              <button className="rest-dock-btn rest-dock-btn--end" onClick={dismissTimer}>
+                Skip
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      <div className="log-session">
+      <div className={`log-session ${timer.active ? 'log-session--resting' : ''}`}>
+        {/* Sticky: the way out of a session shouldn't be at the bottom of six
+            exercise cards. */}
         <div className="log-session-header">
           <input
             className="log-title-input"
@@ -924,6 +989,14 @@ function LogSession({ session, onChange, onSave, onCancel, history = [], saving 
             value={session.label}
             onChange={e => updateLabel(e.target.value)}
           />
+          <div className="log-session-header-actions">
+            <button className="log-header-btn" onClick={onCancel} disabled={saving}>
+              Cancel
+            </button>
+            <button className="log-header-btn log-header-btn--save" onClick={onSave} disabled={saving}>
+              {saving ? 'Saving…' : 'Done'}
+            </button>
+          </div>
         </div>
 
         <div className="log-exercises">
@@ -1031,13 +1104,8 @@ function LogSession({ session, onChange, onSave, onCancel, history = [], saving 
           />
           <span className="rest-timer-config-label">s</span>
         </div>
-
-        <div className="log-session-actions">
-          <button className="btn-ghost" onClick={onCancel} disabled={saving}>Cancel</button>
-          <button className="btn-accent" onClick={onSave} disabled={saving}>
-            {saving ? 'Saving…' : 'Done'}
-          </button>
-        </div>
+        {/* Cancel and Done live in the sticky header — repeating them here
+            would just be a second copy you have to scroll to. */}
       </div>
     </>
   )

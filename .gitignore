@@ -40,3 +40,6 @@ pnpm-debug.log*
 # Claude Code — personal/runtime files (machine-specific, do not commit)
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
+
+# graphify — generated knowledge-graph output, rebuildable from source
+graphify-out/

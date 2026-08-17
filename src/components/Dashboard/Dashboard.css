@@ -1,129 +1,320 @@
-.dashboard {
-  padding: 32px;
-  max-width: 1100px;
+/* ──────────────────────────────────────────────────────────────
+   Dashboard — split shell.
+   Left: the status column. It answers "am I on track this week?" and
+   stays put while you read. Right: the ledger, which scrolls.
+   No stat-tile row, no 2x2 card grid — the week is the page.
+   ────────────────────────────────────────────────────────────── */
+.dash {
+  display: grid;
+  grid-template-columns: minmax(330px, 0.92fr) 1.08fr;
+  align-items: start;
+  min-height: 100%;
 }
 
-.page-header {
+.dash-status {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  padding: 32px 34px 34px;
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border);
+  min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
-  align-items: flex-start;
+  flex-direction: column;
+}
+
+.status-head {
+  display: flex;
+  align-items: baseline;
   justify-content: space-between;
-  margin-bottom: 28px;
+  gap: 12px;
+  padding-bottom: 14px;
+  margin-bottom: 22px;
+  border-bottom: 1px solid var(--border);
 }
 
-.page-title {
+/* ── The Rack — the thesis ──────────────────────────────────────
+   Seven columns, one per day. Height is sets completed, so the shape
+   of the week is the shape of the work.
+   ────────────────────────────────────────────────────────────── */
+.rack {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 5px;
+  height: clamp(200px, 34vh, 320px);
+}
+
+.rack-slot {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* The bore: the empty sleeve a day starts as. The heavier floor line
+   makes an unloaded day read as a slot waiting, not a rendering bug. */
+.rack-bore {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  background: var(--bg-base);
+  border: 1px solid var(--border);
+  border-bottom: 2px solid var(--border-light);
+  border-radius: 2px;
+  overflow: hidden;
+  transition: border-color 0.2s ease;
+}
+
+.rack-load {
+  width: 100%;
+  background: var(--accent);
+  /* Weight settles onto the rack — one orchestrated moment, staggered
+     per day in the JSX. Disabled wholesale by prefers-reduced-motion. */
+  transition: height 620ms cubic-bezier(0.16, 0.84, 0.28, 1);
+}
+
+/* Today reads whether or not it's been trained yet. */
+.rack-slot--today .rack-bore {
+  border-color: var(--accent);
+}
+
+.rack-foot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding-top: 9px;
+}
+
+.rack-day {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.rack-slot--loaded .rack-day { color: var(--text-primary); }
+
+.rack-sets {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.rack-slot--loaded .rack-sets { color: var(--accent); }
+
+/* ── Tally: the one dominant figure on the page ─────────────── */
+.tally {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  margin-top: 26px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tally-figure {
+  display: flex;
+  align-items: baseline;
   font-family: var(--font-display);
-  font-size: clamp(22px, 5.5vw, 28px);
-  font-weight: 700;
-  color: var(--text-primary);
-  letter-spacing: -0.5px;
+  font-variant-numeric: tabular-nums;
+  line-height: 0.82;
 }
 
-.page-subtitle {
+.tally-done {
+  font-size: clamp(62px, 9vw, 104px);
+  font-weight: 800;
+  font-stretch: 125%;
+  letter-spacing: -0.045em;
+  color: var(--text-primary);
+}
+
+.tally-of {
+  font-size: clamp(20px, 2.6vw, 30px);
+  font-weight: 600;
+  font-stretch: 100%;
+  color: var(--text-muted);
+  letter-spacing: -0.02em;
+  margin-left: 7px;
+}
+
+.tally-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-bottom: 8px;
+}
+
+.tally-label {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+  font-stretch: 112%;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-primary);
+}
+
+.tally-sub {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+
+/* ── Facts: a quiet ledger, right-aligned like a scorecard ──── */
+.status-facts {
+  display: flex;
+  flex-direction: column;
+  margin-top: 4px;
+}
+
+.fact {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.fact-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.fact-value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.03em;
+}
+
+.fact-unit {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--text-muted);
+  margin-left: 6px;
+  letter-spacing: 0;
+}
+
+.status-cta {
+  margin-top: auto;
+  width: 100%;
+  background: transparent;
+  color: var(--text-primary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  padding: 14px 18px;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.status-cta:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-glow);
+}
+
+/* When the week is still empty, training is the only thing worth doing —
+   so that button carries full weight. */
+.status-cta--go {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg-base);
+}
+
+.status-cta--go:hover {
+  background: var(--accent);
+  color: var(--bg-base);
+  filter: brightness(1.1);
+}
+
+/* ── Ledger ─────────────────────────────────────────────────── */
+.dash-ledger {
+  padding: 32px 34px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 34px;
+  min-width: 0;
+}
+
+.block { min-width: 0; }
+
+.block-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--text-muted);
+  padding-bottom: 10px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.block-empty {
   font-size: 13px;
   color: var(--text-muted);
-  margin-top: 4px;
+  line-height: 1.6;
+  margin-top: 12px;
 }
 
-.header-badge {
+/* Empty states: a line that says what's missing, and the control that
+   fixes it, sitting on the ground the data will eventually occupy. */
+.empty {
   display: flex;
   align-items: center;
-  gap: 6px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 8px 16px;
-}
-
-.streak-flame { font-size: 18px; }
-.streak-count { font-size: 20px; font-weight: 700; color: var(--orange); font-family: var(--font-display); }
-.streak-label { font-size: 12px; color: var(--text-muted); }
-
-/* Stats row */
-.stats-row {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  justify-content: space-between;
   gap: 16px;
-  margin-bottom: 24px;
+  flex-wrap: wrap;
+  padding: 18px 20px;
+  border: 1px dashed var(--border-light);
+  border-radius: var(--radius-sm);
 }
 
-.stat-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 20px;
-  position: relative;
-  overflow: hidden;
-}
-
-.stat-card::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 3px;
-  border-radius: 3px 3px 0 0;
-}
-
-.stat-card--accent::before { background: var(--accent); }
-.stat-card--blue::before   { background: var(--blue); }
-.stat-card--purple::before { background: var(--purple); }
-.stat-card--orange::before { background: var(--orange); }
-
-.stat-value {
-  font-family: var(--font-display);
-  font-size: clamp(22px, 6vw, 30px);
-  font-weight: 700;
-  color: var(--text-primary);
-  line-height: 1;
-}
-
-.stat-unit {
-  font-size: 12px;
-  color: var(--text-muted);
-  margin-top: 4px;
-}
-
-.stat-label {
-  font-size: 12px;
+.empty-line {
+  font-size: 13px;
   color: var(--text-secondary);
-  margin-top: 8px;
-  font-weight: 500;
+  line-height: 1.5;
 }
 
-/* Dashboard grid */
-.dashboard-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: auto auto;
-  gap: 16px;
-}
-
-.card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 24px;
-}
-
-.card-title {
-  font-family: var(--font-display);
-  font-size: 14px;
+.empty-action {
+  flex-shrink: 0;
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--accent-line);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 10px;
   font-weight: 600;
-  color: var(--text-secondary);
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 20px;
+  padding: 9px 14px;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.empty-action:hover {
+  background: var(--accent-glow);
+  border-color: var(--accent);
 }
 
 /* Steps bar chart */
-.steps-card {
-  grid-column: 1 / 2;
-}
-
 .bar-chart {
   display: flex;
   align-items: flex-end;
-  gap: 10px;
-  height: 120px;
+  gap: 8px;
+  height: 118px;
 }
 
 .bar-col {
@@ -140,136 +331,167 @@
   width: 100%;
   display: flex;
   align-items: flex-end;
+  border-bottom: 1px solid var(--border);
 }
 
+/* Steps are the secondary metric, so every bar is quiet iron. The rack
+   already says which days you trained — colouring these too would double-
+   encode it and spend sodium somewhere it isn't the answer. */
 .bar {
   width: 100%;
-  background: var(--bg-elevated);
-  border-radius: 4px 4px 0 0;
-  min-height: 4px;
+  background: var(--border-light);
+  border-radius: 2px 2px 0 0;
+  min-height: 3px;
   transition: height 0.3s ease;
 }
 
-.bar--workout {
-  background: linear-gradient(to top, var(--accent-dim), var(--accent));
-}
-
 .bar-label {
-  font-size: 11px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
   color: var(--text-muted);
 }
 
-/* Sessions */
-.sessions-card {
-  grid-column: 2 / 3;
-}
-
+/* Sessions ledger */
 .session-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
 }
 
 .session-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 14px;
-  background: var(--bg-elevated);
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
+  display: grid;
+  grid-template-columns: 58px 1fr auto;
+  align-items: baseline;
+  gap: 14px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
 }
 
-.session-left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
+.session-row:last-child { border-bottom: none; }
 
 .session-date {
-  font-size: 11px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
   color: var(--text-muted);
-  width: 36px;
 }
 
 .session-name {
   font-weight: 600;
-  font-size: 13px;
+  font-size: 13.5px;
   color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .session-meta {
-  font-size: 12px;
+  font-family: var(--font-mono);
+  font-size: 10px;
   color: var(--text-muted);
+  white-space: nowrap;
 }
 
-.score-pill {
-  font-size: 12px;
-  font-weight: 700;
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-family: var(--font-display);
-}
-
-.score-pill--green  { background: rgba(163,230,53,0.15); color: var(--accent); }
-.score-pill--blue   { background: rgba(56,189,248,0.15); color: var(--blue); }
-.score-pill--orange { background: rgba(251,146,60,0.15); color: var(--orange); }
-
-/* Coach card */
-.coach-card {
-  grid-column: 1 / -1;
-}
-
-.coach-bubble {
-  background: var(--bg-elevated);
-  border-left: 3px solid var(--accent);
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-  padding: 16px 18px;
-  margin-bottom: 16px;
+/* ──────────────────────────────────────────────────────────────
+   Shared page primitives.
+   Goals, Chat, Workouts, Camera, About, Account, Logging and Calories
+   all use these class names, so they are the app's type system —
+   not dashboard-local styles.
+   ────────────────────────────────────────────────────────────── */
+.page-header {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  padding-bottom: 16px;
+  margin-bottom: 26px;
+  border-bottom: 1px solid var(--border);
 }
 
-.coach-bubble p {
-  font-size: 13.5px;
-  color: var(--text-secondary);
-  line-height: 1.6;
+.page-title {
+  font-family: var(--font-display);
+  font-size: clamp(26px, 5vw, 40px);
+  font-weight: 800;
+  font-stretch: 118%;
+  text-transform: uppercase;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  line-height: 0.95;
 }
 
-.coach-sub {
-  color: var(--text-primary) !important;
+.page-subtitle {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-top: 10px;
+}
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 22px;
+}
+
+.card-title {
+  font-family: var(--font-mono);
+  font-size: 10px;
   font-weight: 500;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  margin-bottom: 18px;
+}
+
+.card-empty {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.6;
 }
 
 .btn-accent {
   background: var(--accent);
   color: var(--bg-base);
-  font-weight: 600;
-  font-size: 13px;
-  padding: 10px 20px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 11px 20px;
   border-radius: var(--radius-sm);
-  transition: opacity 0.15s;
+  transition: filter 0.15s, transform 0.1s;
   display: inline-block;
 }
 
-.btn-accent:hover {
-  opacity: 0.88;
+.btn-accent:hover  { filter: brightness(1.1); }
+.btn-accent:active { transform: translateY(1px); }
+
+.score-pill {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 9px;
+  border-radius: var(--radius-sm);
 }
 
-/* Mobile-only sign-in/out CTA at the bottom of Dashboard.
-   Hidden on desktop (sign-in/out lives in the sidebar there). */
-.dashboard-mobile-auth {
-  display: none;
-}
+.score-pill--green  { background: rgba(74,158,92,0.15);  color: var(--plate-green); }
+.score-pill--blue   { background: rgba(63,138,208,0.15); color: var(--plate-blue); }
+.score-pill--orange { background: var(--accent-glow);    color: var(--accent); }
+
+/* Mobile-only sign-in/out CTA; on desktop this lives in the sidebar. */
+.dashboard-mobile-auth { display: none; }
 
 .dashboard-auth-btn {
   width: 100%;
   padding: 14px 16px;
-  border-radius: var(--radius-md);
-  font-size: 14px;
-  font-weight: 600;
+  border-radius: var(--radius-sm);
   font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
   border: 1px solid var(--border);
   background: var(--bg-card);
   color: var(--text-primary);
@@ -277,59 +499,70 @@
   cursor: pointer;
 }
 
+/* Deliberately not sodium. The training CTA directly above it already
+   carries the accent, and two full-width sodium slabs stacked read as two
+   primary actions — the eye can't tell which one the page wants. */
 .dashboard-auth-btn--signin {
-  background: var(--accent);
-  color: var(--bg-base);
-  border-color: var(--accent);
+  border-color: var(--border-light);
+  color: var(--accent);
 }
-.dashboard-auth-btn--signin:hover { opacity: 0.88; }
+.dashboard-auth-btn--signin:hover {
+  border-color: var(--accent);
+  background: var(--accent-glow);
+}
 
 .dashboard-auth-btn--signout:hover {
-  border-color: rgba(248, 113, 113, 0.4);
-  color: var(--red);
+  border-color: rgba(229, 71, 59, 0.4);
+  color: var(--plate-red);
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Tablet — the split needs room to stay honest.
+   ────────────────────────────────────────────────────────────── */
+@media (max-width: 980px) {
+  .dash {
+    grid-template-columns: 1fr;
+  }
+
+  .dash-status {
+    position: static;
+    min-height: 0;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    padding: 26px 24px 28px;
+  }
+
+  .status-cta { margin-top: 24px; }
+
+  .dash-ledger { padding: 28px 24px 40px; }
 }
 
 /* ──────────────────────────────────────────────────────────────
    Mobile
    ────────────────────────────────────────────────────────────── */
 @media (max-width: 768px) {
-  .dashboard {
-    padding: 18px 16px;
-  }
+  .dash-status { padding: 20px 16px 24px; }
+  .dash-ledger { padding: 24px 16px 28px; gap: 28px; }
 
-  .page-header {
-    margin-bottom: 18px;
-  }
+  .rack { height: clamp(160px, 26vh, 210px); gap: 4px; }
 
-  /* 2x2 stat grid on phones */
-  .stats-row {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-    margin-bottom: 16px;
-  }
+  .tally { margin-top: 20px; }
 
-  .stat-card {
-    padding: 14px;
-  }
-
-  .dashboard-grid {
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
-
-  .steps-card,
-  .sessions-card,
-  .coach-card,
-  .weight-chart-card {
-    grid-column: 1 / -1;
-  }
-
-  .card {
-    padding: 18px;
-  }
-
+  /* Secondary to the training CTA above it: smaller, quieter, and not
+     stretched to the same slab width. */
   .dashboard-mobile-auth {
-    display: block;
+    display: flex;
+    justify-content: center;
     margin-top: 12px;
   }
+
+  .dashboard-auth-btn {
+    width: auto;
+    min-height: 44px;
+    padding: 10px 22px;
+    font-size: 11px;
+    background: transparent;
+  }
+
+  .session-row { grid-template-columns: 52px 1fr auto; gap: 10px; }
 }
