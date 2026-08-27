@@ -93,6 +93,7 @@ export default function App() {
           <h1 className="handle-title">Couldn't load your profile</h1>
           <p className="handle-sub">Something went wrong reaching the server. Check your connection and try again.</p>
           <button type="button" className="handle-submit" onClick={loadProfile}>Retry</button>
+          <button type="button" className="handle-mode-toggle" onClick={handleSignOut}>Sign out</button>
         </div>
       </div>
     )

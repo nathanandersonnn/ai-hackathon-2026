@@ -82,3 +82,15 @@
 
 .handle-submit:hover:not(:disabled) { opacity: 0.88; }
 .handle-submit:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.handle-mode-toggle {
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  text-align: center;
+  margin-top: 18px;
+  width: 100%;
+  transition: color 0.12s;
+}
+
+.handle-mode-toggle:hover { color: var(--accent); }
