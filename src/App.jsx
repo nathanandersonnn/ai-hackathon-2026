@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './lib/supabase/client'
+import { getMyProfile } from './lib/supabase/profiles'
 import Sidebar from './components/Sidebar'
 import Camera from './components/Camera/Camera'
 import Chat from './components/Chat/Chat'
@@ -11,6 +12,7 @@ import Calories from './components/Calories/Calories'
 import About from './components/About/About'
 import Auth from './components/Auth/Auth'
 import Account from './components/Account/Account'
+import HandleSetup from './components/Handle/HandleSetup'
 import './App.css'
 
 const VIEWS = {
@@ -29,6 +31,8 @@ const VIEWS = {
 export default function App() {
   const [activeView, setActiveView] = useState('dashboard')
   const [user, setUser] = useState(null)
+  // undefined = still loading, null = signed in but no profile row yet, object = loaded profile
+  const [profile, setProfile] = useState(undefined)
   const [chatSeed, setChatSeed] = useState(null)  // optional pre-filled message for Chat
 
   useEffect(() => {
@@ -38,6 +42,12 @@ export default function App() {
     })
     return () => subscription.unsubscribe()
   }, [])
+
+  useEffect(() => {
+    if (!user) { setProfile(undefined); return }
+    setProfile(undefined)
+    getMyProfile().then(setProfile).catch(() => setProfile(null))
+  }, [user])
 
   async function handleSignOut() {
     await supabase.auth.signOut()
@@ -52,6 +62,15 @@ export default function App() {
   function handleNavigate(view, opts = {}) {
     if (typeof opts.chatSeed === 'string') setChatSeed(opts.chatSeed)
     setActiveView(view)
+  }
+
+  // A signed-out visitor keeps the existing browse-then-sign-in flow — no gate.
+  // A signed-in visitor is gated on having a profile row: `undefined` while it
+  // loads (render nothing, so the gate doesn't flash on every page load), then
+  // either the handle picker (`null`) or the app itself (loaded object).
+  if (user && profile === undefined) return null
+  if (user && profile === null) {
+    return <HandleSetup user={user} onDone={() => getMyProfile().then(setProfile)} />
   }
 
   const ActiveView = VIEWS[activeView]
