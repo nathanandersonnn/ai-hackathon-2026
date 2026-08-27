@@ -42,6 +42,17 @@ export async function listPendingRequests() {
   return hydrate(incoming, me)
 }
 
+// Requests I sent that are still awaiting the other side. Used to keep a
+// target visible in search results with a "Requested" affordance instead of
+// it silently vanishing after Add is clicked.
+export async function listOutgoingPending() {
+  const me = await currentUserId()
+  const { data, error } = await supabase.from(TABLE).select('*').eq('status', 'pending')
+  if (error) throw error
+  const outgoing = (data ?? []).filter(r => r.requested_by === me)
+  return hydrate(outgoing, me)
+}
+
 export async function requestFriend(userId) {
   const { error } = await supabase.rpc('request_friend', { target: userId })
   if (error) throw error

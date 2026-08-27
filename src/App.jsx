@@ -25,7 +25,6 @@ const VIEWS = {
   calories: Calories,
   logging: Logging,
   goals: Goals,
-  friends: Friends,
   about: About,
   auth: Auth,
   account: Account,
@@ -72,11 +71,11 @@ export default function App() {
 
   async function handleSignOut() {
     await supabase.auth.signOut()
-    setActiveView('dashboard')
+    handleNavigate('dashboard')
   }
 
   function handleSignedIn() {
-    setActiveView('dashboard')
+    handleNavigate('dashboard')
   }
 
   // navigate(view) or navigate(view, { chatSeed }) — used to deep-link into Chat with a question
@@ -128,7 +127,7 @@ export default function App() {
         {activeView === 'friends'
           ? (openFriend
               ? <FriendProfile profile={openFriend} onBack={() => setOpenFriend(null)} />
-              : <Friends onOpenFriend={setOpenFriend} />)
+              : <Friends user={user} onOpenFriend={setOpenFriend} onNavigate={handleNavigate} />)
           : <ActiveView {...viewProps} />}
       </main>
     </div>

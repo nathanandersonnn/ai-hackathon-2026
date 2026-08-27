@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getWorkoutSessionsFor } from '../../lib/supabase/workouts'
 import { getWorkoutTemplatesFor, copyTemplateFrom } from '../../lib/supabase/workoutTemplates'
+import ErrorBanner from './ErrorBanner'
 
 export default function FriendProfile({ profile, onBack }) {
   const [sessions, setSessions]   = useState([])
@@ -9,6 +10,7 @@ export default function FriendProfile({ profile, onBack }) {
   const [error, setError]         = useState('')
 
   useEffect(() => {
+    setError('')
     getWorkoutSessionsFor(profile.id).then(setSessions).catch(e => setError(e.message))
     getWorkoutTemplatesFor(profile.id).then(setTemplates).catch(e => setError(e.message))
   }, [profile.id])
@@ -26,7 +28,7 @@ export default function FriendProfile({ profile, onBack }) {
     <div className="friends-view">
       <button className="friend-secondary" onClick={onBack}>← Back</button>
       <h1 className="friends-title">@{profile.handle}</h1>
-      {error && <div className="friends-error">{error}</div>}
+      <ErrorBanner message={error} />
 
       <section className="friends-section">
         <h2>Presets</h2>
