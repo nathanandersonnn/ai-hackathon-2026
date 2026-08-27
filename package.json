@@ -8,7 +8,8 @@
     "dev:vite": "vite",
     "server": "node --env-file=.env server/index.js",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node --env-file=.env --test"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "^0.10.35",
