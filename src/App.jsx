@@ -13,6 +13,8 @@ import About from './components/About/About'
 import Auth from './components/Auth/Auth'
 import Account from './components/Account/Account'
 import HandleSetup from './components/Handle/HandleSetup'
+import Friends from './components/Friends/Friends'
+import FriendProfile from './components/Friends/FriendProfile'
 import './App.css'
 
 const VIEWS = {
@@ -23,6 +25,7 @@ const VIEWS = {
   calories: Calories,
   logging: Logging,
   goals: Goals,
+  friends: Friends,
   about: About,
   auth: Auth,
   account: Account,
@@ -41,6 +44,7 @@ export default function App() {
   // updates rather than errors).
   const [profileError, setProfileError] = useState(false)
   const [chatSeed, setChatSeed] = useState(null)  // optional pre-filled message for Chat
+  const [openFriend, setOpenFriend] = useState(null)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user ?? null))
@@ -78,6 +82,7 @@ export default function App() {
   // navigate(view) or navigate(view, { chatSeed }) — used to deep-link into Chat with a question
   function handleNavigate(view, opts = {}) {
     if (typeof opts.chatSeed === 'string') setChatSeed(opts.chatSeed)
+    if (view !== 'friends') setOpenFriend(null)
     setActiveView(view)
   }
 
@@ -120,7 +125,11 @@ export default function App() {
         onSignOut={handleSignOut}
       />
       <main className="app-main">
-        <ActiveView {...viewProps} />
+        {activeView === 'friends'
+          ? (openFriend
+              ? <FriendProfile profile={openFriend} onBack={() => setOpenFriend(null)} />
+              : <Friends onOpenFriend={setOpenFriend} />)
+          : <ActiveView {...viewProps} />}
       </main>
     </div>
   )
