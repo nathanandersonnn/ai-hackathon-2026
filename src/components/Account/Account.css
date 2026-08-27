@@ -60,6 +60,10 @@
   color: var(--text-muted);
 }
 
+.account-hint--error {
+  color: var(--red);
+}
+
 .account-error {
   background: rgba(248, 113, 113, 0.1);
   color: var(--red);

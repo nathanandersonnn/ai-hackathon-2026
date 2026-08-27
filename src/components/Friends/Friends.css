@@ -1,0 +1,141 @@
+.friends-view {
+  padding: 32px;
+  max-width: 600px;
+}
+
+.friends-title {
+  font-family: var(--font-display);
+  font-size: clamp(26px, 5vw, 40px);
+  font-weight: 800;
+  font-stretch: 118%;
+  text-transform: uppercase;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  line-height: 0.95;
+  padding-bottom: 16px;
+  margin-bottom: 22px;
+  border-bottom: 1px solid var(--border);
+}
+
+.friends-error {
+  background: rgba(248, 113, 113, 0.1);
+  color: var(--red);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  border-radius: var(--radius-sm);
+  padding: 9px 12px;
+  font-size: 12.5px;
+  margin-bottom: 16px;
+}
+
+.friends-search {
+  width: 100%;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 11px 14px;
+  font-size: 14px;
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.friends-search:focus { border-color: var(--accent); }
+
+.friends-hint {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  margin: 6px 0 0;
+}
+
+.friends-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  margin-top: 24px;
+}
+
+.friends-section h2 {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  margin-bottom: 14px;
+}
+
+.friends-empty {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.friend-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+
+.friend-row:first-child { border-top: none; padding-top: 0; }
+.friend-row:last-child { padding-bottom: 0; }
+
+.friend-handle {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.friend-link {
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  transition: color 0.12s;
+}
+
+.friend-link:hover { color: var(--accent); }
+
+.friend-tag {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Primary action (Add / Accept) — buttons with no extra class */
+.friend-row > button:not(.friend-secondary):not(.friend-link) {
+  background: var(--accent);
+  color: var(--bg-base);
+  font-weight: 600;
+  font-size: 12.5px;
+  padding: 7px 14px;
+  border-radius: var(--radius-sm);
+  transition: filter 0.15s;
+  flex-shrink: 0;
+}
+
+.friend-row > button:not(.friend-secondary):not(.friend-link):hover { filter: brightness(1.1); }
+
+.friend-secondary {
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  font-weight: 600;
+  font-size: 12.5px;
+  padding: 7px 14px;
+  border-radius: var(--radius-sm);
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.friend-secondary:hover {
+  border-color: var(--border-light);
+  color: var(--text-primary);
+}
+
+.friend-session { padding: 8px 0; border-bottom: 1px solid var(--border); }
+.friend-set { opacity: 0.7; margin-left: 6px; }
