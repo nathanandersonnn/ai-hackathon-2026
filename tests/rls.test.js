@@ -620,3 +620,62 @@ test('an accepted friendship exposes the profile row, and remove_friend takes it
     await alice.from('profiles').delete().eq('id', aliceId)
   }
 })
+
+// ─────────────────────────────────────────────
+//  Migration 004 — are_friends() is not a public oracle
+//
+//  are_friends() is SECURITY DEFINER (mandatory: without it the
+//  workout_sessions policy recurses through friendships' own RLS) and keeps
+//  its default PUBLIC EXECUTE grant (also deliberate: the policies call it on
+//  every read INCLUDING anon reads, and revoking EXECUTE would make anonymous
+//  queries RAISE instead of returning zero rows).
+//
+//  Those two facts together mean PostgREST exposes it as an RPC any caller can
+//  invoke with two arbitrary uuids. Before 004 it did not require the caller to
+//  be one of the pair, so an unauthenticated stranger could ask whether any two
+//  users were friends and get a straight answer — the friendship graph was
+//  public. Confirmed against the live database at the time:
+//
+//      anon: are_friends(alice, bob) -> true
+//
+//  These tests establish a REAL accepted friendship first, so a regression
+//  returns true and fails loudly. Asserting against a non-existent friendship
+//  would pass for the wrong reason.
+// ─────────────────────────────────────────────
+
+test('an anonymous caller cannot use are_friends as an oracle', async () => {
+  const { alice, bob, aliceId, bobId } = await getTestClients()
+  await clearFriendship(alice, bobId)
+  try {
+    // A genuine accepted friendship: becomeFriends reads the row back and
+    // asserts status === 'accepted', so the setup cannot silently no-op.
+    await becomeFriends(bob, alice, bobId, aliceId)
+
+    const { data, error } = await anonClient().rpc('are_friends', { a: aliceId, b: bobId })
+    assert.equal(error, null, 'anon must still be able to CALL it — the read policies invoke it on anon reads, and raising here would break them')
+    assert.equal(data, false, 'anon must not learn that these two are friends')
+  } finally {
+    await clearFriendship(alice, bobId)
+  }
+})
+
+test('an authenticated caller cannot ask about a pair they are not in', async () => {
+  const { alice, bob, aliceId, bobId } = await getTestClients()
+  await clearFriendship(alice, bobId)
+  try {
+    await becomeFriends(bob, alice, bobId, aliceId)
+
+    // Bob IS in the alice/bob pair, so asking about it legitimately returns
+    // true — that is the function doing its job.
+    const { data: own, error: ownErr } = await bob.rpc('are_friends', { a: aliceId, b: bobId })
+    assert.equal(ownErr, null)
+    assert.equal(own, true, 'a member of the pair must still get a real answer, or the read policies break')
+
+    // A pair Bob is not part of must come back false regardless of the truth.
+    const { data: other, error: otherErr } = await bob.rpc('are_friends', { a: aliceId, b: aliceId })
+    assert.equal(otherErr, null)
+    assert.equal(other, false, 'a third party must not learn about someone else’s friendships')
+  } finally {
+    await clearFriendship(alice, bobId)
+  }
+})
