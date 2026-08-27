@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase/client'
+import { getMyProfile, claimHandle, isHandleValid } from '../../lib/supabase/profiles'
 import './Account.css'
 
 export default function Account() {
   const [user, setUser]         = useState(null)
   const [username, setUsername] = useState('')
+  const [handle, setHandle]     = useState('')
   const [loading, setLoading]   = useState(true)
   const [saving, setSaving]     = useState(false)
   const [saved, setSaved]       = useState(false)
@@ -18,6 +20,10 @@ export default function Account() {
     })
   }, [])
 
+  useEffect(() => {
+    getMyProfile().then(p => setHandle(p?.handle ?? '')).catch(() => {})
+  }, [])
+
   async function handleSave() {
     setError('')
     setSaving(true)
@@ -27,6 +33,11 @@ export default function Account() {
       })
       if (error) throw error
       setUser(data.user)
+
+      if (handle && isHandleValid(handle)) {
+        await claimHandle(handle, username.trim() || null)
+      }
+
       setSaved(true)
       setTimeout(() => setSaved(false), 2500)
     } catch (err) {
@@ -79,6 +90,19 @@ export default function Account() {
             maxLength={40}
           />
           <p className="account-hint">This is how the AI Coach will address you.</p>
+        </div>
+
+        <div className="account-field">
+          <label className="field-label">Handle</label>
+          <input
+            className="account-input"
+            type="text"
+            placeholder="your_handle"
+            value={handle}
+            onChange={e => setHandle(e.target.value.toLowerCase())}
+            maxLength={20}
+          />
+          <p className="account-hint">3-20 characters: lowercase letters, numbers, underscores. This is how friends find you.</p>
         </div>
 
         {error && <div className="account-error">{error}</div>}
