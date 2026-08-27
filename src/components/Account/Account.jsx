@@ -66,15 +66,18 @@ export default function Account() {
     }
     setSaving(true)
     try {
+      // Claim the handle first: if it's taken, we bail out here and the
+      // username is left untouched, rather than committing the username and
+      // then reporting a handle error against an already-half-saved form.
+      if (handleTouched) {
+        await claimHandle(handle, username.trim() || null)
+      }
+
       const { data, error } = await supabase.auth.updateUser({
         data: { username: username.trim() }
       })
       if (error) throw error
       setUser(data.user)
-
-      if (handleTouched) {
-        await claimHandle(handle, username.trim() || null)
-      }
 
       setSaved(true)
       setTimeout(() => setSaved(false), 2500)

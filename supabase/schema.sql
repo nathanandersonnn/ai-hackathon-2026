@@ -1,5 +1,9 @@
--- Generated file. Source of truth is supabase/migrations/.
--- Regenerate: cat supabase/migrations/*.sql >> supabase/schema.sql
+-- Baseline schema for the live DB, hand-maintained alongside supabase/migrations/.
+-- This file holds the original base tables (daily_logs, workout_sessions,
+-- user_goals, milestones, calorie_logs) that predate the migrations
+-- directory and are not defined in any migration. New schema changes go in
+-- supabase/migrations/ as their own files; this file is not regenerated
+-- from them and should be updated by hand if it drifts from the live DB.
 
 create extension if not exists "pgcrypto";
 
