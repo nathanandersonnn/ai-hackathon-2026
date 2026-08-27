@@ -19,8 +19,8 @@ export default function HandleSetup({ user, onDone }) {
     setError('')
     setLoading(true)
     try {
-      await claimHandle(handle, user?.user_metadata?.username ?? null)
-      onDone()
+      const claimed = await claimHandle(handle, user?.user_metadata?.username ?? null)
+      onDone(claimed)
     } catch (err) {
       setError(err.message)
     } finally {

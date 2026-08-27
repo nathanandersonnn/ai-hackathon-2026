@@ -33,6 +33,13 @@ export default function App() {
   const [user, setUser] = useState(null)
   // undefined = still loading, null = signed in but no profile row yet, object = loaded profile
   const [profile, setProfile] = useState(undefined)
+  // Distinct from `profile === null` ("no row" — a real, resolved answer from
+  // getMyProfile). This is "the fetch itself failed" — a network blip or an
+  // expired token. Conflating the two would show the handle gate to a user who
+  // already has a handle, and typing a new one there would silently rewrite
+  // their existing row (claimHandle's upsert conflicts on the id PK, so it
+  // updates rather than errors).
+  const [profileError, setProfileError] = useState(false)
   const [chatSeed, setChatSeed] = useState(null)  // optional pre-filled message for Chat
 
   useEffect(() => {
@@ -43,11 +50,21 @@ export default function App() {
     return () => subscription.unsubscribe()
   }, [])
 
+  // Keyed on user?.id, not `user` itself: onAuthStateChange fires a new user
+  // object (same id) on every token refresh / tab-focus revalidation. Keying
+  // on the object would re-run this on each of those, dropping profile back
+  // to undefined and unmounting the whole app tree via the `return null`
+  // below — destroying an open chat thread, a form in progress, etc.
   useEffect(() => {
-    if (!user) { setProfile(undefined); return }
+    if (!user) { setProfile(undefined); setProfileError(false); return }
+    loadProfile()
+  }, [user?.id])
+
+  function loadProfile() {
     setProfile(undefined)
-    getMyProfile().then(setProfile).catch(() => setProfile(null))
-  }, [user])
+    setProfileError(false)
+    getMyProfile().then(setProfile).catch(() => setProfileError(true))
+  }
 
   async function handleSignOut() {
     await supabase.auth.signOut()
@@ -67,10 +84,22 @@ export default function App() {
   // A signed-out visitor keeps the existing browse-then-sign-in flow — no gate.
   // A signed-in visitor is gated on having a profile row: `undefined` while it
   // loads (render nothing, so the gate doesn't flash on every page load), then
-  // either the handle picker (`null`) or the app itself (loaded object).
+  // either an error/retry view (fetch failed — never the gate), the handle
+  // picker (a genuine `null` — no row), or the app itself (loaded object).
+  if (user && profileError) {
+    return (
+      <div className="handle-view">
+        <div className="handle-card">
+          <h1 className="handle-title">Couldn't load your profile</h1>
+          <p className="handle-sub">Something went wrong reaching the server. Check your connection and try again.</p>
+          <button type="button" className="handle-submit" onClick={loadProfile}>Retry</button>
+        </div>
+      </div>
+    )
+  }
   if (user && profile === undefined) return null
   if (user && profile === null) {
-    return <HandleSetup user={user} onDone={() => getMyProfile().then(setProfile)} />
+    return <HandleSetup user={user} onDone={setProfile} />
   }
 
   const ActiveView = VIEWS[activeView]
