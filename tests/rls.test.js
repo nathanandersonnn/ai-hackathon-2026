@@ -85,7 +85,8 @@ test('handles must be lowercase and 3-20 chars', async () => {
 test('bob cannot read alice\'s profile row directly when not friends', async () => {
   const { alice, bob, aliceId } = await getTestClients()
   try {
-    await alice.from('profiles').upsert({ id: aliceId, handle: 'alice_rls' })
+    const { error: seedErr } = await alice.from('profiles').upsert({ id: aliceId, handle: 'alice_rls' })
+    assert.equal(seedErr, null, 'seed must land, or the negative assertion below proves nothing')
     const { data } = await bob.from('profiles').select('*').eq('id', aliceId)
     assert.deepEqual(data, [], 'profiles must not be openly readable')
   } finally {
@@ -114,7 +115,8 @@ test('search_profiles rejects prefixes shorter than 3 characters', async () => {
 test('search_profiles never returns the caller', async () => {
   const { bob, bobId } = await getTestClients()
   try {
-    await bob.from('profiles').upsert({ id: bobId, handle: 'bob_rls' })
+    const { error: seedErr } = await bob.from('profiles').upsert({ id: bobId, handle: 'bob_rls' })
+    assert.equal(seedErr, null, 'seed must land, or the negative assertion below proves nothing')
     const { data } = await bob.rpc('search_profiles', { prefix: 'bob' })
     assert.ok(!data.some(r => r.id === bobId))
   } finally {
@@ -134,7 +136,8 @@ test('search_profiles treats underscore in the prefix literally, not as a wildca
   try {
     // Under `like 'my_h%'`, this handle WOULD wrongly match a search for
     // 'my_h' because '_' matches any single character in LIKE.
-    await alice.from('profiles').upsert({ id: aliceId, handle: 'myqhandle' })
+    const { error: seedErr } = await alice.from('profiles').upsert({ id: aliceId, handle: 'myqhandle' })
+    assert.equal(seedErr, null, 'seed must land, or the negative assertion below proves nothing')
     const { data, error } = await bob.rpc('search_profiles', { prefix: 'my_h' })
     assert.equal(error, null)
     assert.ok(!data.some(r => r.handle === 'myqhandle'),
