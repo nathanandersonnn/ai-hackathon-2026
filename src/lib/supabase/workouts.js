@@ -84,3 +84,19 @@ export async function deleteWorkoutSession(id) {
 
   if (error) throw error
 }
+
+/**
+ * Fetch a friend's workout history. Returns [] for a non-friend — RLS
+ * filters the rows out rather than raising an error.
+ */
+export async function getWorkoutSessionsFor(userId, limit = 50) {
+  const { data, error } = await supabase
+    .from(TABLE)
+    .select('*')
+    .eq('user_id', userId)
+    .order('date', { ascending: false })
+    .limit(limit)
+
+  if (error) throw error
+  return data
+}
