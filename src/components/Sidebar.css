@@ -250,8 +250,15 @@
     display: none;
   }
 
-  /* Only the four primaries ride in the bar; the rest are in More. */
+  /* Only the primaries ride in the bar; the rest are in More. */
   .sidebar .nav-item[data-primary='false'] {
+    display: none;
+  }
+
+  /* Desktop-only destinations are hidden from phones outright. Form Check
+     needs a camera that mobile browsers won't hand us, so the slot would
+     lead nowhere. */
+  .sidebar .nav-item[data-desktop-only='true'] {
     display: none;
   }
 

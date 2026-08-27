@@ -2,12 +2,17 @@ import { useEffect, useState } from 'react'
 import './Sidebar.css'
 
 // Desktop shows every destination in the rail. A phone can't hold eight
-// legible targets in one row, so mobile promotes the five that get used
+// legible targets in one row, so mobile promotes the ones that get used
 // mid-session and puts the rest behind More.
+//
+// desktopOnly hides a destination from phones entirely — not in the bar, not
+// in More. Form Check is desktopOnly because getUserMedia never opens the
+// camera on mobile, and a nav slot that leads to a dead end is worse than no
+// slot at all.
 const NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard',  icon: GridIcon,     primary: true },
   { id: 'workouts',  label: 'Workouts',   icon: WorkoutsIcon, primary: true },
-  { id: 'camera',    label: 'Form Check', icon: CameraIcon,   primary: true },
+  { id: 'camera',    label: 'Form Check', icon: CameraIcon,   primary: true, desktopOnly: true },
   { id: 'chat',      label: 'AI Coach',   icon: ChatIcon,     primary: true },
   { id: 'calories',  label: 'Calories',   icon: CaloriesIcon },
   { id: 'logging',   label: 'Daily Log',  icon: LogIcon },
@@ -51,11 +56,12 @@ export default function Sidebar({ active, onNavigate, user, onSignOut }) {
         </div>
 
         <nav className="sidebar-nav" aria-label="Main">
-          {NAV_ITEMS.map(({ id, label, icon: Icon, primary }) => (
+          {NAV_ITEMS.map(({ id, label, icon: Icon, primary, desktopOnly }) => (
             <button
               key={id}
               data-nav-id={id}
               data-primary={primary ? 'true' : 'false'}
+              data-desktop-only={desktopOnly ? 'true' : 'false'}
               className={`nav-item ${active === id ? 'nav-item--active' : ''}`}
               aria-current={active === id ? 'page' : undefined}
               onClick={() => go(id)}
