@@ -38,8 +38,30 @@ async function signInOrUp(email, password) {
   return { client, userId: data.user.id }
 }
 
-export async function getTestClients() {
-  const a = await signInOrUp(process.env.TEST_ALICE_EMAIL, process.env.TEST_ALICE_PASSWORD)
-  const b = await signInOrUp(process.env.TEST_BOB_EMAIL, process.env.TEST_BOB_PASSWORD)
-  return { alice: a.client, bob: b.client, aliceId: a.userId, bobId: b.userId }
+// Signing in once per test blows through Supabase's auth rate limit
+// (two token requests x every test, all inside a few seconds -> HTTP 429
+// over_request_rate_limit, which fails every test after the first handful
+// for a reason that has nothing to do with the policies under test).
+//
+// So sign in once per process and hand every test the same two clients.
+// They are still two SEPARATE client objects holding two SEPARATE sessions,
+// which is the only property the RLS tests depend on. Nothing is cached in
+// the client between calls — persistSession is off and every test reads
+// straight from the database — so sharing them across tests is safe.
+let clientsPromise = null
+
+export function getTestClients() {
+  if (!clientsPromise) {
+    clientsPromise = (async () => {
+      const a = await signInOrUp(process.env.TEST_ALICE_EMAIL, process.env.TEST_ALICE_PASSWORD)
+      const b = await signInOrUp(process.env.TEST_BOB_EMAIL, process.env.TEST_BOB_PASSWORD)
+      return { alice: a.client, bob: b.client, aliceId: a.userId, bobId: b.userId }
+    })().catch(err => {
+      // Don't cache a failure: a transient 429 on the very first test would
+      // otherwise poison every later test with the same stale rejection.
+      clientsPromise = null
+      throw err
+    })
+  }
+  return clientsPromise
 }
