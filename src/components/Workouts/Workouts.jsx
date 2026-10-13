@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { EXERCISE_LIBRARY, MUSCLE_GROUPS } from './exerciseLibrary'
-import { getWorkoutSessions, saveWorkoutSession, updateWorkoutSession, deleteWorkoutSession } from '../../lib/supabase/workouts'
+import { getWorkoutSessions, getAllWorkoutSessions, saveWorkoutSession, updateWorkoutSession, deleteWorkoutSession } from '../../lib/supabase/workouts'
 import { getWorkoutTemplates, saveWorkoutTemplate, deleteWorkoutTemplate } from '../../lib/supabase/workoutTemplates'
 import './Workouts.css'
 
@@ -248,6 +248,7 @@ export default function Workouts() {
   const [editSaving, setEditSaving] = useState(false)
   const [session, setSession] = useState(null)       // active log session
   const [savingSession, setSavingSession] = useState(false)
+  const [exporting, setExporting] = useState(false)
 
   useEffect(() => {
     getWorkoutSessions()
@@ -370,8 +371,13 @@ export default function Workouts() {
     }
     setSavingSession(true)
     try {
-      const saved = await saveWorkoutSession(cleaned)
-      setHistory(prev => [saved, ...prev])
+      // Auto-save may have already inserted a row for this session and stamped
+      // its id onto the draft. Finishing has to update that row — inserting
+      // again is what put a duplicate in history for every logged workout.
+      const saved = session.id
+        ? await updateWorkoutSession(session.id, cleaned)
+        : await saveWorkoutSession(cleaned)
+      setHistory(prev => [saved, ...prev.filter(s => s.id !== saved.id)])
       setSession(null)
       setTab('history')
     } catch (err) {
@@ -379,6 +385,32 @@ export default function Workouts() {
       alert('Could not save workout — check console.')
     } finally {
       setSavingSession(false)
+    }
+  }
+
+  async function exportHistory() {
+    setExporting(true)
+    try {
+      const sessions = await getAllWorkoutSessions()
+      const payload = {
+        exportedAt: new Date().toISOString(),
+        count: sessions.length,
+        sessions: sessions.map(({ id, date, label, exercises, created_at }) => ({
+          id, date, label, created_at, exercises,
+        })),
+      }
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `myfitbud-workouts-${new Date().toISOString().slice(0, 10)}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('Failed to export workouts:', err)
+      alert('Could not export workouts. Please try again.')
+    } finally {
+      setExporting(false)
     }
   }
 
@@ -481,6 +513,13 @@ export default function Workouts() {
       {/* ── HISTORY ── */}
       {tab === 'history' && (
         <div className="history-list">
+          {!historyLoading && history.length > 0 && (
+            <div className="history-toolbar">
+              <button className="btn-ghost history-export-btn" onClick={exportHistory} disabled={exporting}>
+                {exporting ? 'Exporting…' : 'Export JSON'}
+              </button>
+            </div>
+          )}
           {historyLoading && (
             <p className="empty-state">Loading…</p>
           )}

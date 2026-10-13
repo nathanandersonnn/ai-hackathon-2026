@@ -26,6 +26,29 @@ export async function getWorkoutSessions(limit = 50) {
 }
 
 /**
+ * Fetch every workout session the user has logged, newest first. Pages
+ * through the table so exports aren't capped by the API's row limit.
+ */
+export async function getAllWorkoutSessions() {
+  const userId = await currentUserId()
+  const PAGE = 1000
+  const all = []
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from(TABLE)
+      .select('*')
+      .eq('user_id', userId)
+      .order('date', { ascending: false })
+      .order('id', { ascending: true })
+      .range(from, from + PAGE - 1)
+
+    if (error) throw error
+    all.push(...data)
+    if (data.length < PAGE) return all
+  }
+}
+
+/**
  * Save a completed workout session.
  * @param {object} session
  * @param {string} session.label

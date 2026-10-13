@@ -217,6 +217,21 @@
   gap: 10px;
 }
 
+.history-toolbar {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.history-export-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* Export is a desktop-only feature */
+@media (max-width: 768px) {
+  .history-toolbar { display: none; }
+}
+
 .empty-state {
   color: var(--text-muted);
   font-size: 13px;
