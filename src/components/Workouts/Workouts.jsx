@@ -391,7 +391,15 @@ export default function Workouts() {
   async function exportHistory() {
     setExporting(true)
     try {
-      const sessions = await getAllWorkoutSessions()
+      // An old auto-save bug saved some workouts twice; keep one copy of any
+      // session with the same date, name and exercises.
+      const seen = new Set()
+      const sessions = (await getAllWorkoutSessions()).filter(s => {
+        const key = JSON.stringify([s.date, s.label, s.exercises])
+        if (seen.has(key)) return false
+        seen.add(key)
+        return true
+      })
       const payload = {
         exportedAt: new Date().toISOString(),
         count: sessions.length,
